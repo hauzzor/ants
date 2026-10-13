@@ -5,10 +5,12 @@ import { createGrid } from './grid'
 import { createMetrics } from './metrics'
 import { createFields, decay, diffuse } from './pheromone'
 import { createWalls, addBorderWalls } from './walls'
-import { createAnt, updateAnt } from './ant'
+import { updateAnt, spawnAntNearNest } from './ant'
 import { emitScent, pruneDepleted } from './food'
 import { PHEROMONE_KINDS } from './types'
 import type { Vec2, World } from './types'
+
+const MAX_SPAWNS_PER_STEP = 8
 
 export const DEFAULT_WORLD = {
   width: 240,
@@ -52,14 +54,12 @@ export function createWorld(options: WorldOptions = {}): World {
     pheromones: createFields(grid),
     metrics: createMetrics(),
     time: 0,
+    spawnTimer: 0,
     nextId: 1,
   }
 
-  const jitter = params.nestRadius * 0.5
   for (let i = 0; i < params.antCount; i++) {
-    const x = nest.x + rng.range(-jitter, jitter)
-    const y = nest.y + rng.range(-jitter, jitter)
-    world.ants.push(createAnt(world.nextId++, x, y, rng.angle()))
+    spawnAntNearNest(world, rng.range(0, params.antLifespan))
   }
 
   return world
@@ -74,6 +74,8 @@ export function stepWorld(world: World, dt: number): void {
 
   world.foods = pruneDepleted(world.foods)
 
+  world.ants = world.ants.filter((ant) => ant.age < ant.lifespan)
+
   emitScent(
     world.foods,
     pheromones.food,
@@ -82,6 +84,20 @@ export function stepWorld(world: World, dt: number): void {
     params.foodScentRate,
     dt,
   )
+
+  if (params.spawnInterval > 0) {
+    world.spawnTimer = Math.min(world.spawnTimer, params.spawnInterval)
+    world.spawnTimer += dt
+    let spawns = 0
+    while (world.spawnTimer >= params.spawnInterval && spawns < MAX_SPAWNS_PER_STEP) {
+      world.spawnTimer -= params.spawnInterval
+      spawnAntNearNest(world)
+      spawns++
+    }
+    if (world.spawnTimer >= params.spawnInterval) {
+      world.spawnTimer %= params.spawnInterval
+    }
+  }
 
   for (const kind of PHEROMONE_KINDS) {
     const field = pheromones[kind]

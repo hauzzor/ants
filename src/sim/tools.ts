@@ -1,6 +1,6 @@
 import { forEachCellInCircle, index } from './grid'
 import { createFood } from './food'
-import { spawnAnt } from './ant'
+import { spawnAnt, spawnAntNearNest } from './ant'
 import { setWallCircle } from './walls'
 import { PHEROMONE_KINDS } from './types'
 import type { Ant, FoodSource, World } from './types'
@@ -85,10 +85,7 @@ export function setAntCount(world: World, target: number): void {
     world.ants = world.ants.slice(0, count)
     return
   }
-  const jitter = world.params.nestRadius * 0.5
   while (world.ants.length < count) {
-    const x = world.nest.x + world.rng.range(-jitter, jitter)
-    const y = world.nest.y + world.rng.range(-jitter, jitter)
-    spawnAnt(world, x, y)
+    spawnAntNearNest(world)
   }
 }

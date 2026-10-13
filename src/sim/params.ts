@@ -17,10 +17,12 @@ export interface SimParams {
   foodAmount: number
   foodScentRate: number
   foodScentRadius: number
+  antLifespan: number
+  spawnInterval: number
 }
 
 export const DEFAULT_PARAMS: SimParams = {
-  antCount: 40,
+  antCount: 100,
   antSpeed: 26,
   antTurnRate: 4,
   sensorAngle: 0.6,
@@ -38,6 +40,8 @@ export const DEFAULT_PARAMS: SimParams = {
   foodAmount: 60,
   foodScentRate: 5,
   foodScentRadius: 16,
+  antLifespan: 60,
+  spawnInterval: 1,
 }
 
 export function createParams(overrides: Partial<SimParams> = {}): SimParams {

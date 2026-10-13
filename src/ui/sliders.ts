@@ -12,6 +12,8 @@ interface SimSlider {
 const SIM_SLIDERS: readonly SimSlider[] = [
   { key: 'antSpeed', label: 'Speed', min: 0, max: 80, step: 1 },
   { key: 'antTurnRate', label: 'Turn rate', min: 0, max: 10, step: 0.1 },
+  { key: 'antLifespan', label: 'Lifespan', min: 0, max: 180, step: 1 },
+  { key: 'spawnInterval', label: 'Spawn interval', min: 0, max: 5, step: 0.1 },
   { key: 'sensorAngle', label: 'Sensor angle', min: 0, max: 2, step: 0.05 },
   { key: 'sensorDistance', label: 'Sensor dist', min: 0, max: 20, step: 0.5 },
   { key: 'wanderStrength', label: 'Wander', min: 0, max: 5, step: 0.1 },

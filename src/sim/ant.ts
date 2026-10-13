@@ -1,17 +1,35 @@
 import { deposit, sample } from './pheromone'
 import { isWallAt } from './walls'
 import { findFoodAt, takeFood } from './food'
+import { DEFAULT_PARAMS } from './params'
 import type { Ant, World } from './types'
 
 const TWO_PI = Math.PI * 2
 const HALF_PI = Math.PI / 2
 
-export function createAnt(id: number, x: number, y: number, angle: number): Ant {
-  return { id, x, y, angle, state: 'wander', carrying: false, wander: 0, age: 0 }
+export function createAnt(
+  id: number,
+  x: number,
+  y: number,
+  angle: number,
+  age = 0,
+  lifespan = DEFAULT_PARAMS.antLifespan,
+): Ant {
+  return { id, x, y, angle, state: 'wander', carrying: false, wander: 0, age, lifespan }
 }
 
 export function spawnAnt(world: World, x: number, y: number): Ant {
-  const ant = createAnt(world.nextId++, x, y, world.rng.angle())
+  const ant = createAnt(world.nextId++, x, y, world.rng.angle(), 0, world.params.antLifespan)
+  world.ants.push(ant)
+  return ant
+}
+
+export function spawnAntNearNest(world: World, age = 0): Ant {
+  const { nest, rng, params } = world
+  const jitter = params.nestRadius * 0.5
+  const x = nest.x + rng.range(-jitter, jitter)
+  const y = nest.y + rng.range(-jitter, jitter)
+  const ant = createAnt(world.nextId++, x, y, rng.angle(), age, params.antLifespan)
   world.ants.push(ant)
   return ant
 }

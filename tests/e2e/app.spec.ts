@@ -6,7 +6,12 @@ test.beforeEach(async ({ page }) => {
 
 test('loads the arena and shows live metrics', async ({ page }) => {
   await expect(page.locator('canvas#arena')).toBeVisible()
-  await expect(page.getByTestId('metric-ants')).toHaveText('40')
+  const ants = await page.evaluate(() => {
+    window.ants!.reset(1)
+    return window.ants!.snapshot().ants
+  })
+  expect(ants).toBe(100)
+  await expect(page.getByTestId('metric-ants')).toHaveText(/\d+/)
   await expect(page.locator('.tool')).toHaveCount(9)
 })
 
@@ -40,13 +45,14 @@ test('placing food adds a source', async ({ page }) => {
 
 test('adding an ant increases the colony', async ({ page }) => {
   await page.getByTestId('control-play').click()
+  const before = await page.evaluate(() => window.ants!.snapshot().ants)
   await page.getByTestId('tool-spawnAnt').click()
   const box = await page.locator('canvas#arena').boundingBox()
   if (!box) throw new Error('no canvas box')
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
   await expect
     .poll(() => page.evaluate(() => window.ants!.snapshot().ants))
-    .toBe(41)
+    .toBe(before + 1)
 })
 
 test('painting attract pheromone adds to the field', async ({ page }) => {
@@ -73,6 +79,7 @@ test('drawing a wall increases the wall count', async ({ page }) => {
 })
 
 test('the colony size slider changes the number of ants', async ({ page }) => {
+  await page.getByTestId('control-play').click()
   await page.getByTestId('slider-colony').evaluate((el) => {
     const input = el as HTMLInputElement
     input.value = '80'
@@ -103,6 +110,11 @@ test('the food scent slider is available', async ({ page }) => {
   const slider = page.getByTestId('slider-foodScentRate')
   await expect(slider).toBeVisible()
   await expect(slider).toHaveValue('5')
+})
+
+test('lifecycle sliders are available', async ({ page }) => {
+  await expect(page.getByTestId('slider-antLifespan')).toHaveValue('60')
+  await expect(page.getByTestId('slider-spawnInterval')).toHaveValue('1')
 })
 
 test('reset restarts the clock', async ({ page }) => {

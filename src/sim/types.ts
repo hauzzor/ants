@@ -24,6 +24,7 @@ export interface Ant {
   carrying: boolean
   wander: number
   age: number
+  lifespan: number
 }
 
 export interface FoodSource {
@@ -62,5 +63,6 @@ export interface World {
   pheromones: PheromoneFields
   metrics: Metrics
   time: number
+  spawnTimer: number
   nextId: number
 }

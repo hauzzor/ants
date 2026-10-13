@@ -77,8 +77,7 @@ const sliders = createSliders(slidersEl, {
 
 function resetWorld(seed: number = state.seed): void {
   state.seed = seed
-  const params = { ...world.params, antCount: world.ants.length }
-  world = createWorld({ seed, params })
+  world = createWorld({ seed, params: world.params })
   sliders.sync()
 }
 
