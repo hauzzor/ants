@@ -1,20 +1,6 @@
+import './editor.css'
 import type { World } from '../sim'
-import type { SimParams } from '../sim'
-
-interface SimSlider {
-  key: keyof SimParams
-  label: string
-  min: number
-  max: number
-  step: number
-}
-
-const SIM_SLIDERS: readonly SimSlider[] = [
-  { key: 'spawnInterval', label: 'Spawn interval', min: 0, max: 5, step: 0.1 },
-  { key: 'pheromoneDecay', label: 'Decay', min: 0, max: 1, step: 0.01 },
-  { key: 'pheromoneDiffusion', label: 'Diffusion', min: 0, max: 1, step: 0.01 },
-  { key: 'foodScentRate', label: 'Food scent', min: 0, max: 30, step: 0.5 },
-]
+import { SIM_SLIDERS, SPECIAL_SLIDERS, type SimSliderMeta, type SpecialSliderKey, type SpecialSliderMeta } from './sliderMeta'
 
 export interface SliderDeps {
   getWorld(): World
@@ -30,37 +16,25 @@ export interface SlidersHandle {
   sync(): void
 }
 
-function sliderRow(
-  testid: string,
-  label: string,
-  min: number,
-  max: number,
-  step: number,
-  value: number,
-): string {
-  return `<label class="slider">
-    <span class="slider-label">${label}<span class="slider-value" data-sv="${testid}">${value}</span></span>
-    <input type="range" data-testid="${testid}" min="${min}" max="${max}" step="${step}" value="${value}" />
-  </label>`
+export function sliderRow(meta: SimSliderMeta | SpecialSliderMeta, value: number): string {
+  const id = `slider-${meta.key}`
+  const descId = `slider-desc-${meta.key}`
+  return `<div class="slider">
+    <label class="slider-label" for="${id}">${meta.label}<span class="slider-value" data-sv="${id}">${value}</span></label>
+    <input type="range" id="${id}" data-testid="${id}" aria-describedby="${descId}" min="${meta.min}" max="${meta.max}" step="${meta.step}" value="${value}" />
+    <span class="slider-desc" id="${descId}" data-testid="${descId}">${meta.description}</span>
+  </div>`
 }
 
 export function createSliders(root: HTMLElement, deps: SliderDeps): SlidersHandle {
-  const specials = [
-    sliderRow('slider-colony', 'Colony size', 0, 200, 1, deps.getColony()),
-    sliderRow('slider-speed', 'Sim speed', 0.25, 4, 0.25, deps.getSpeed()),
-    sliderRow('slider-brush', 'Brush', 2, 30, 1, deps.getBrush()),
-  ]
+  const specialHandlers: Record<SpecialSliderKey, { get(): number; set(value: number): void }> = {
+    colony: { get: deps.getColony, set: deps.onColony },
+    speed: { get: deps.getSpeed, set: deps.onSpeed },
+    brush: { get: deps.getBrush, set: deps.onBrush },
+  }
 
-  const sim = SIM_SLIDERS.map((s) =>
-    sliderRow(
-      `slider-${s.key}`,
-      s.label,
-      s.min,
-      s.max,
-      s.step,
-      deps.getWorld().params[s.key],
-    ),
-  )
+  const specials = SPECIAL_SLIDERS.map((s) => sliderRow(s, specialHandlers[s.key].get()))
+  const sim = SIM_SLIDERS.map((s) => sliderRow(s, deps.getWorld().params[s.key]))
 
   root.innerHTML = `<div class="slider-group">${sim.join('')}</div>
     <div class="slider-group">${specials.join('')}</div>`
@@ -80,26 +54,16 @@ export function createSliders(root: HTMLElement, deps: SliderDeps): SlidersHandl
     })
   }
 
-  const colony = input('slider-colony')
-  colony.addEventListener('input', () => {
-    const value = Number(colony.value)
-    deps.onColony(value)
-    valueLabel('slider-colony').textContent = String(value)
-  })
-
-  const speed = input('slider-speed')
-  speed.addEventListener('input', () => {
-    const value = Number(speed.value)
-    deps.onSpeed(value)
-    valueLabel('slider-speed').textContent = String(value)
-  })
-
-  const brush = input('slider-brush')
-  brush.addEventListener('input', () => {
-    const value = Number(brush.value)
-    deps.onBrush(value)
-    valueLabel('slider-brush').textContent = String(value)
-  })
+  for (const s of SPECIAL_SLIDERS) {
+    const testid = `slider-${s.key}`
+    const handler = specialHandlers[s.key]
+    const el = input(testid)
+    el.addEventListener('input', () => {
+      const value = Number(el.value)
+      handler.set(value)
+      valueLabel(testid).textContent = String(value)
+    })
+  }
 
   return {
     sync(): void {
@@ -110,12 +74,12 @@ export function createSliders(root: HTMLElement, deps: SliderDeps): SlidersHandl
         input(testid).value = String(value)
         valueLabel(testid).textContent = String(value)
       }
-      colony.value = String(deps.getColony())
-      valueLabel('slider-colony').textContent = String(deps.getColony())
-      speed.value = String(deps.getSpeed())
-      valueLabel('slider-speed').textContent = String(deps.getSpeed())
-      brush.value = String(deps.getBrush())
-      valueLabel('slider-brush').textContent = String(deps.getBrush())
+      for (const s of SPECIAL_SLIDERS) {
+        const testid = `slider-${s.key}`
+        const value = specialHandlers[s.key].get()
+        input(testid).value = String(value)
+        valueLabel(testid).textContent = String(value)
+      }
     },
   }
 }

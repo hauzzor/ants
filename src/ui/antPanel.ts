@@ -1,18 +1,24 @@
+import './editor.css'
 import { BLANK_TYPE, getAntTypes } from '../sim'
 import type { Ability, AntType, AntTypeDraft, World } from '../sim/types'
 import {
   ABILITY_KINDS,
+  ABILITY_KIND_DESCRIPTIONS,
+  ABILITY_KIND_LABELS,
   ABILITY_SPECS,
+  CONDITION_OPTIONS,
+  DIRECTION_OPTIONS,
+  FIELD_DESCRIPTIONS,
+  IDENTITY_DESCRIPTIONS,
+  OPTION_LABELS,
+  PHEROMONE_OPTIONS,
+  SELECT_FIELD_LABELS,
   type AbilityKind,
   freshDraft,
   newAbility,
 } from './abilityDrafts'
 
 const BLANK_TYPE_ID = 'blank'
-
-const PHEROMONE_OPTIONS: readonly string[] = ['home', 'food', 'attract', 'repel']
-const CONDITION_OPTIONS: readonly string[] = ['always', 'carrying', 'empty']
-const DIRECTION_OPTIONS: readonly string[] = ['toward', 'away']
 
 export interface AntPanelDeps {
   getWorld(): World
@@ -37,10 +43,33 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node
 }
 
-function labeledRow(labelText: string, control: HTMLElement): HTMLLabelElement {
-  const label = el('label', 'ant-editor-row') as HTMLLabelElement
-  label.append(el('span', 'ant-editor-label', labelText), control)
-  return label
+function fieldRow(labelText: string, control: HTMLElement, desc?: HTMLElement): HTMLElement {
+  const controlId = control.dataset.testid ?? ''
+  if (controlId) {
+    control.id = controlId
+    if (desc) control.setAttribute('aria-describedby', desc.id)
+  }
+  const row = el('div', 'ant-editor-field')
+  const label = el('label', 'ant-editor-label', labelText) as HTMLLabelElement
+  if (controlId) label.htmlFor = controlId
+  row.append(label, control)
+  if (desc) row.append(desc)
+  return row
+}
+
+function labeledRow(labelText: string, control: HTMLElement): HTMLElement {
+  return fieldRow(labelText, control)
+}
+
+function descriptionEl(descId: string, text: string): HTMLParagraphElement {
+  const desc = el('p', 'field-desc', text)
+  desc.id = descId
+  desc.dataset.testid = descId
+  return desc
+}
+
+function describedControl(labelText: string, control: HTMLElement, desc: HTMLElement): HTMLElement {
+  return fieldRow(labelText, control, desc)
 }
 
 function option(value: string, text: string, selected: boolean): HTMLOptionElement {
@@ -75,7 +104,9 @@ function selectInput(
 ): HTMLSelectElement {
   const select = el('select', 'ability-input') as HTMLSelectElement
   select.dataset.testid = testid
-  for (const optionValue of options) select.add(option(optionValue, optionValue, optionValue === value))
+  for (const optionValue of options) {
+    select.add(option(optionValue, OPTION_LABELS[optionValue] ?? optionValue, optionValue === value))
+  }
   return select
 }
 
@@ -95,8 +126,9 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
   const nestSelect = el('select') as HTMLSelectElement
   nestSelect.dataset.testid = 'nest-type'
 
-  const nestDescription = el('p', 'ant-type-desc')
+  const nestDescription = el('p', 'field-desc')
   nestDescription.dataset.testid = 'nest-type-description'
+  nestDescription.id = 'nest-type-description'
 
   const editSelect = el('select') as HTMLSelectElement
   editSelect.dataset.testid = 'edit-type'
@@ -114,7 +146,9 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
 
   const addKindSelect = el('select') as HTMLSelectElement
   addKindSelect.dataset.testid = 'add-ability-kind'
-  for (const kind of ABILITY_KINDS) addKindSelect.add(option(kind, kind, kind === 'walk'))
+  for (const kind of ABILITY_KINDS) {
+    addKindSelect.add(option(kind, ABILITY_KIND_LABELS[kind], kind === 'walk'))
+  }
 
   const addAbilityButton = el('button', 'control')
   addAbilityButton.type = 'button'
@@ -145,23 +179,29 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
   abilityList.dataset.testid = 'ability-list'
 
   const header = el('div', 'ant-editor-section')
-  header.append(
-    labeledRow('Nest spawns', nestSelect),
-    nestDescription,
-  )
+  header.append(describedControl('Nest spawns', nestSelect, nestDescription))
 
   const identity = el('div', 'ant-editor-section ant-editor-grid')
   identity.append(
-    labeledRow('Edit type', editSelect),
-    labeledRow('Name', nameInput),
-    labeledRow('Lifespan', lifespanInput),
+    describedControl(
+      'Edit type',
+      editSelect,
+      descriptionEl('edit-type-desc', IDENTITY_DESCRIPTIONS.editType),
+    ),
+    describedControl(
+      'Name',
+      nameInput,
+      descriptionEl('ant-type-name-desc', IDENTITY_DESCRIPTIONS.name),
+    ),
+    describedControl(
+      'Lifespan',
+      lifespanInput,
+      descriptionEl('ant-type-lifespan-desc', IDENTITY_DESCRIPTIONS.lifespan),
+    ),
   )
 
-  const toolbar = el('div', 'ant-editor-section ant-editor-row')
-  toolbar.append(
-    labeledRow('Add', addKindSelect),
-    addAbilityButton,
-  )
+  const toolbar = el('div', 'ant-editor-section ant-editor-toolbar')
+  toolbar.append(labeledRow('Add', addKindSelect), addAbilityButton)
 
   const actions = el('div', 'ant-editor-section ant-editor-actions')
   actions.append(newTypeButton, saveTypeButton, deleteTypeButton, previewTypeButton)
@@ -186,7 +226,8 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
     const world = deps.getWorld()
     const nest = world.types[world.nestTypeId]
     const count = nest ? nest.abilities.length : 0
-    nestDescription.textContent = count === 0 ? 'no abilities' : `${count} abilities`
+    const summary = count === 0 ? 'no abilities' : `${count} abilities`
+    nestDescription.textContent = `${IDENTITY_DESCRIPTIONS.nestSpawns} · ${summary}`
   }
 
   function updateButtons(): void {
@@ -215,20 +256,19 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
     field: { name: string; key: string; min: number; max: number; step: number },
     ability: Ability,
   ): HTMLElement {
-    const input = numberInput(
-      `ability-${index}-${field.key}`,
-      field.min,
-      field.max,
-      field.step,
-      Number(ability[field.key as keyof Ability]),
-    )
+    const testid = `ability-${index}-${field.key}`
+    const input = numberInput(testid, field.min, field.max, field.step, Number(ability[field.key as keyof Ability]))
     input.addEventListener('input', () => {
       const target = draft.abilities[index]
       if (!target) return
       const record = target as unknown as Record<string, number>
       record[field.key] = readNumber(input, field.min, field.min, field.max)
     })
-    return input
+    return describedControl(
+      field.name,
+      input,
+      descriptionEl(`${testid}-desc`, FIELD_DESCRIPTIONS[field.key] ?? ''),
+    )
   }
 
   function buildFieldSelect(
@@ -237,26 +277,32 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
     options: readonly string[],
     ability: Ability,
   ): HTMLElement {
-    const select = selectInput(
-      `ability-${index}-${field}`,
-      options,
-      String(ability[field as keyof Ability]),
-    )
+    const testid = `ability-${index}-${field}`
+    const select = selectInput(testid, options, String(ability[field as keyof Ability]))
     select.addEventListener('change', () => {
       const target = draft.abilities[index]
       if (!target) return
       const record = target as unknown as Record<string, string>
       record[field] = readEnum(select, options, options[0] ?? 'always')
     })
-    return select
+    return describedControl(
+      SELECT_FIELD_LABELS[field] ?? field,
+      select,
+      descriptionEl(`${testid}-desc`, FIELD_DESCRIPTIONS[field] ?? ''),
+    )
   }
 
   function buildAbilityRow(index: number, ability: Ability): HTMLElement {
+    const kind = ability.kind as AbilityKind
     const row = el('div', 'ability-row')
     row.dataset.testid = `ability-row-${index}`
+    row.dataset.kind = kind
 
-    const headerRow = el('div', 'ability-row-head')
-    headerRow.append(el('span', 'ability-kind', ability.kind))
+    const headText = el('div', 'ability-head-text')
+    headText.append(
+      el('span', 'ability-kind', ABILITY_KIND_LABELS[kind]),
+      descriptionEl(`ability-${index}-desc`, ABILITY_KIND_DESCRIPTIONS[kind]),
+    )
 
     const duplicateButton = el('button', 'ability-btn')
     duplicateButton.type = 'button'
@@ -269,7 +315,7 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
       renderAbilityList()
     })
 
-    const removeButton = el('button', 'ability-btn')
+    const removeButton = el('button', 'ability-btn ability-btn-danger')
     removeButton.type = 'button'
     removeButton.dataset.testid = `ability-${index}-remove`
     removeButton.textContent = 'Remove'
@@ -278,7 +324,11 @@ export function createAntPanel(root: HTMLElement, deps: AntPanelDeps): AntPanelH
       renderAbilityList()
     })
 
-    headerRow.append(duplicateButton, removeButton)
+    const headActions = el('div', 'ability-row-actions')
+    headActions.append(duplicateButton, removeButton)
+
+    const headerRow = el('div', 'ability-row-head')
+    headerRow.append(headText, headActions)
     row.append(headerRow)
 
     const fields = el('div', 'ability-fields')

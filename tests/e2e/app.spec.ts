@@ -240,3 +240,116 @@ test('preview spawns a real ant of the draft type', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.ants!.snapshot().ants)).toBe(before + 1)
   expect(await page.evaluate(() => window.ants!.typeCounts()['preview'] ?? 0)).toBe(1)
 })
+
+test('parameter sliders show descriptions', async ({ page }) => {
+  const sliderKeys = [
+    'colony',
+    'speed',
+    'brush',
+    'spawnInterval',
+    'pheromoneDecay',
+    'pheromoneDiffusion',
+    'foodScentRate',
+  ] as const
+
+  for (const key of sliderKeys) {
+    const desc = page.getByTestId(`slider-desc-${key}`)
+    await expect(desc).toBeVisible()
+    await expect(desc).toHaveText(/\S/)
+    await expect(page.getByTestId(`slider-${key}`)).toHaveAttribute(
+      'aria-describedby',
+      `slider-desc-${key}`,
+    )
+  }
+})
+
+test('ant editor inputs show descriptions', async ({ page }) => {
+  await page.getByTestId('new-type').click()
+
+  const nameDesc = page.getByTestId('ant-type-name-desc')
+  await expect(nameDesc).toBeVisible()
+  await expect(nameDesc).toHaveText(/\S/)
+  await expect(page.getByTestId('ant-type-name')).toHaveAttribute(
+    'aria-describedby',
+    'ant-type-name-desc',
+  )
+
+  const lifespanDesc = page.getByTestId('ant-type-lifespan-desc')
+  await expect(lifespanDesc).toBeVisible()
+  await expect(lifespanDesc).toHaveText(/\S/)
+  await expect(page.getByTestId('ant-type-lifespan')).toHaveAttribute(
+    'aria-describedby',
+    'ant-type-lifespan-desc',
+  )
+
+  const editTypeDesc = page.getByTestId('edit-type-desc')
+  await expect(editTypeDesc).toBeVisible()
+  await expect(editTypeDesc).toHaveText(/\S/)
+  await expect(page.getByTestId('edit-type')).toHaveAttribute(
+    'aria-describedby',
+    'edit-type-desc',
+  )
+
+  const nestTypeDesc = page.getByTestId('nest-type-description')
+  await expect(nestTypeDesc).toBeVisible()
+  await expect(nestTypeDesc).toHaveText(/\S/)
+  await expect(page.getByTestId('nest-type')).toHaveAttribute(
+    'aria-describedby',
+    'nest-type-description',
+  )
+})
+
+test('ability fields show descriptions', async ({ page }) => {
+  await page.getByTestId('new-type').click()
+
+  const kinds = ['walk', 'wander', 'emit', 'follow'] as const
+  const abilityFields: Record<(typeof kinds)[number], string[]> = {
+    walk: ['speed'],
+    wander: ['strength'],
+    emit: ['pheromone', 'intensity', 'condition'],
+    follow: ['pheromone', 'direction', 'sensorAngle', 'sensorDistance', 'turnRate', 'condition'],
+  }
+
+  for (const [i, kind] of kinds.entries()) {
+    await page.getByTestId('add-ability-kind').selectOption(kind)
+    await page.getByTestId('add-ability').click()
+
+    const kindDesc = page.getByTestId(`ability-${i}-desc`)
+    await expect(kindDesc).toBeVisible()
+    await expect(kindDesc).toHaveText(/\S/)
+
+    for (const field of abilityFields[kind]) {
+      const fieldDesc = page.getByTestId(`ability-${i}-${field}-desc`)
+      await expect(fieldDesc).toBeVisible()
+      await expect(fieldDesc).toHaveText(/\S/)
+      await expect(page.getByTestId(`ability-${i}-${field}`)).toHaveAttribute(
+        'aria-describedby',
+        `ability-${i}-${field}-desc`,
+      )
+    }
+  }
+})
+
+test('select options use human labels', async ({ page }) => {
+  await page.getByTestId('new-type').click()
+
+  const kindSelect = page.getByTestId('add-ability-kind')
+  for (const value of ['walk', 'wander', 'emit', 'follow']) {
+    await expect(kindSelect.locator(`option[value="${value}"]`)).toHaveCount(1)
+  }
+  await expect(kindSelect.locator('option[value="emit"]')).toHaveText('Emit pheromone')
+
+  await page.getByTestId('add-ability-kind').selectOption('emit')
+  await page.getByTestId('add-ability').click()
+
+  const condition0 = page.getByTestId('ability-0-condition')
+  await expect(condition0.locator('option[value="carrying"]')).toHaveAttribute('value', 'carrying')
+  await expect(condition0.locator('option[value="carrying"]')).toHaveText('while carrying food')
+
+  await page.getByTestId('add-ability-kind').selectOption('follow')
+  await page.getByTestId('add-ability').click()
+
+  const direction1 = page.getByTestId('ability-1-direction')
+  await expect(direction1.locator('option[value="away"]')).toHaveAttribute('value', 'away')
+  await expect(direction1.locator('option[value="away"]')).toHaveText('away from scent')
+})
