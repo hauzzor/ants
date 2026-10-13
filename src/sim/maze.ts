@@ -10,7 +10,7 @@ import type { Grid, Vec2 } from './types'
 import type { Rng } from './rng'
 
 export const NEST_PLAZA_RADIUS = 14
-export const DEFAULT_MAZE_CELL_SIZE = 3
+export const DEFAULT_MAZE_CELL_SIZE = 6
 export const DEFAULT_MAZE_OBSTACLES = 12
 
 export interface MazeOptions {

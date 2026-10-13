@@ -89,6 +89,25 @@ describe('maze generation', () => {
     expect(obstacleCount(world.walls)).toBe(DEFAULT_MAZE_OBSTACLES)
   })
 
+  it('is substantially less dense than a 3-cell lattice', () => {
+    const coarse = createWorld({ seed: 1, params: { antCount: 0 } })
+    const fine = createWorld({ seed: 1, mazeCellSize: 3, params: { antCount: 0 } })
+
+    expect(wallCount(coarse.walls)).toBeLessThan(wallCount(fine.walls) * 0.7)
+    expect(openCellCount(coarse.walls)).toBeGreaterThan(openCellCount(fine.walls))
+    expect(obstacleCount(coarse.walls)).toBe(DEFAULT_MAZE_OBSTACLES)
+    expect(reachableOpenCells(coarse)).toBe(openCellCount(coarse.walls))
+
+    const { grid, walls } = coarse
+    for (let row = 0; row < grid.rows; row++) {
+      for (let col = 0; col < grid.cols; col++) {
+        if (cellDistance(coarse, col, row) <= NEST_PLAZA_RADIUS) {
+          expect(walls[index(grid, col, row)]).toBe(0)
+        }
+      }
+    }
+  })
+
   it('never places obstacles on the border', () => {
     const world = createWorld({ seed: 1, params: { antCount: 0 } })
     const { grid, walls } = world
