@@ -10,7 +10,7 @@ import {
 import { createFood } from '../../src/sim/food'
 import { isWallAt } from '../../src/sim/walls'
 import { deposit, sample, sampleDirection } from '../../src/sim/pheromone'
-import { paintPheromone } from '../../src/sim/tools'
+import { paintPheromone, placeObstacleRect, spawnAntAt } from '../../src/sim/tools'
 import { DEFAULT_PARAMS } from '../../src/sim/params'
 import { PHEROMONE_KINDS } from '../../src/sim/types'
 import type { Ability, AntType, World } from '../../src/sim/types'
@@ -81,7 +81,7 @@ describe('createWorld', () => {
   })
 
   it('walls off the arena border', () => {
-    const world = createWorld({ maze: false })
+    const world = createWorld()
     expect(isWallAt(world.walls, world.grid, 2, 2)).toBe(true)
     expect(isWallAt(world.walls, world.grid, 20, 20)).toBe(false)
   })
@@ -204,6 +204,26 @@ describe('stepWorld', () => {
     expect(a.metrics).toEqual(b.metrics)
     expect(Array.from(a.pheromones.home)).toEqual(Array.from(b.pheromones.home))
     expect(Array.from(a.pheromones.peaks.home)).toEqual(Array.from(b.pheromones.peaks.home))
+  })
+})
+
+describe('obstacle blocking', () => {
+  it('never lets a moving ant occupy a hand-placed obstacle', () => {
+    const world = createWorld({
+      seed: 3,
+      params: { antCount: 0, spawnInterval: 0 },
+      types: { walker: type({ id: 'walker', abilities: [{ kind: 'walk', speed: 40 }] }) },
+      nestTypeId: 'walker',
+    })
+    placeObstacleRect(world, 100, 40, 140, 120)
+    spawnAntAt(world, 60, 80)
+
+    run(world, 600)
+
+    expect(world.ants.length).toBeGreaterThan(0)
+    for (const ant of world.ants) {
+      expect(isWallAt(world.walls, world.grid, ant.x, ant.y)).toBe(false)
+    }
   })
 })
 

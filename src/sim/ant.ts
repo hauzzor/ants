@@ -1,7 +1,7 @@
 import { emitAbilities, followTurnDelta, totalWalkSpeed, wanderTurnDelta } from './ability'
 import { BLANK_TYPE, cloneAbilities, getAntType } from './antTypes'
 import { findFoodAt, takeFood } from './food'
-import { isWallAt } from './walls'
+import { isWallAt, nearestOpenPoint } from './walls'
 import type { Ability, Ant, AntType, World } from './types'
 
 const TWO_PI = Math.PI * 2
@@ -40,10 +40,11 @@ function nestType(world: World): AntType {
 
 export function spawnAnt(world: World, x: number, y: number): Ant {
   const type = nestType(world)
+  const point = nearestOpenPoint(world.walls, world.grid, x, y)
   const ant = createAnt(
     world.nextId++,
-    x,
-    y,
+    point.x,
+    point.y,
     world.rng.angle(),
     type.lifespan,
     type.abilities,
@@ -70,10 +71,11 @@ export function spawnAntWithType(world: World, type: AntType): Ant {
   const jitter = params.nestRadius * 0.5
   const x = nest.x + rng.range(-jitter, jitter)
   const y = nest.y + rng.range(-jitter, jitter)
+  const point = nearestOpenPoint(world.walls, world.grid, x, y)
   const ant = createAnt(
     world.nextId++,
-    x,
-    y,
+    point.x,
+    point.y,
     rng.angle(),
     type.lifespan,
     type.abilities,

@@ -129,6 +129,17 @@ describe('emitRadial', () => {
     expect(fields.dirs.food.x[center]).toBe(0)
     expect(fields.dirs.food.y[center]).toBe(0)
   })
+
+  it('skips blocked target cells when walls are provided', () => {
+    const fields = createFields(grid)
+    const walls = new Uint8Array(grid.cols * grid.rows)
+    walls[index(grid, 6, 5)] = 1
+    emitRadial(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 12, 5, 1, walls)
+
+    expect(fields.food[index(grid, 6, 5)]).toBe(0)
+    expect(fields.peaks.food[index(grid, 6, 5)]).toBe(0)
+    expect(fields.food[index(grid, 5, 5)]).toBeGreaterThan(0)
+  })
 })
 
 describe('sample', () => {
@@ -245,6 +256,33 @@ describe('diffuse', () => {
     const neighbour = index(grid, 6, 5)
     expect(fields.dirs.food.x[neighbour]).toBe(0)
     expect(fields.dirs.food.y[neighbour]).toBe(0)
+  })
+
+  it('keeps blocked cells at zero and stops values crossing them', () => {
+    const field = new Float32Array(grid.cols * grid.rows)
+    const walls = new Uint8Array(grid.cols * grid.rows)
+    field[index(grid, 2, 5)] = 100
+    field[index(grid, 3, 5)] = 100
+    walls[index(grid, 3, 5)] = 1
+
+    diffuse(field, grid, 1, 1, walls)
+
+    expect(field[index(grid, 3, 5)]).toBe(0)
+    expect(field[index(grid, 4, 5)]).toBe(0)
+    expect(field[index(grid, 1, 5)]).toBeGreaterThan(0)
+    expect(field[index(grid, 2, 4)]).toBeGreaterThan(0)
+  })
+
+  it('zeroes blocked cells even when the diffusion rate is zero', () => {
+    const field = new Float32Array(grid.cols * grid.rows)
+    const walls = new Uint8Array(grid.cols * grid.rows)
+    const i = index(grid, 3, 5)
+    field[i] = 100
+    walls[i] = 1
+
+    diffuse(field, grid, 0, 1, walls)
+
+    expect(field[i]).toBe(0)
   })
 })
 

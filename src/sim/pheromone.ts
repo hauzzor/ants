@@ -65,6 +65,7 @@ export function emitRadial(
   radius: number,
   rate: number,
   dt: number,
+  walls?: Uint8Array,
 ): void {
   if (radius <= 0 || rate <= 0 || dt <= 0) {
     return
@@ -73,6 +74,9 @@ export function emitRadial(
   forEachCellInCircle(grid, centerX, centerY, radius, (col, row, distance) => {
     const falloff = 1 - distance / radius
     const i = index(grid, col, row)
+    if (walls && walls[i] !== 0) {
+      return
+    }
     const add = amount * falloff
     const value = (field[i] ?? 0) + add
     field[i] = value
@@ -171,7 +175,20 @@ export function cullDiluted(
   }
 }
 
-export function diffuse(field: Float32Array, grid: Grid, rate: number, dt: number): void {
+export function diffuse(
+  field: Float32Array,
+  grid: Grid,
+  rate: number,
+  dt: number,
+  walls?: Uint8Array,
+): void {
+  if (walls) {
+    for (let i = 0; i < field.length; i++) {
+      if (walls[i] !== 0) {
+        field[i] = 0
+      }
+    }
+  }
   const k = clamp(rate * dt, 0, 1)
   if (k === 0) {
     return
@@ -181,22 +198,25 @@ export function diffuse(field: Float32Array, grid: Grid, rate: number, dt: numbe
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const i = r * cols + c
+      if (walls && walls[i] !== 0) {
+        continue
+      }
       const center = copy[i] ?? 0
       let sum = 0
       let count = 0
-      if (c > 0) {
+      if (c > 0 && (!walls || walls[i - 1] === 0)) {
         sum += copy[i - 1] ?? 0
         count++
       }
-      if (c < cols - 1) {
+      if (c < cols - 1 && (!walls || walls[i + 1] === 0)) {
         sum += copy[i + 1] ?? 0
         count++
       }
-      if (r > 0) {
+      if (r > 0 && (!walls || walls[i - cols] === 0)) {
         sum += copy[i - cols] ?? 0
         count++
       }
-      if (r < rows - 1) {
+      if (r < rows - 1 && (!walls || walls[i + cols] === 0)) {
         sum += copy[i + cols] ?? 0
         count++
       }

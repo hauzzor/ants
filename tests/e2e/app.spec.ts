@@ -12,7 +12,7 @@ test('loads the arena and shows live metrics', async ({ page }) => {
   })
   expect(ants).toBe(100)
   await expect(page.getByTestId('metric-ants')).toHaveText(/\d+/)
-  await expect(page.locator('.tool')).toHaveCount(9)
+  await expect(page.locator('.tool')).toHaveCount(10)
 })
 
 test('the simulation advances over time', async ({ page }) => {

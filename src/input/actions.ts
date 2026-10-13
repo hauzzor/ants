@@ -41,6 +41,8 @@ export function applyTool(
     case 'eraseWall':
       drawWall(world, x, y, brush, 0)
       break
+    case 'obstacle':
+      break
     case 'spawnAnt':
       spawnAntAt(world, x, y)
       break

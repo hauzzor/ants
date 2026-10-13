@@ -175,4 +175,17 @@ describe('emitScent', () => {
     expect(dir.y[down]).toBeLessThan(0)
     expect(dir.x[down]).toBeCloseTo(0, 6)
   })
+
+  it('skips blocked cells when walls are provided', () => {
+    const field = emptyField(GRID)
+    const peak = emptyField(GRID)
+    const dir = emptyDir(GRID)
+    const walls = new Uint8Array(GRID.cols * GRID.rows)
+    walls[index(GRID, 2, 1)] = 1
+    emitScent([createFood(0, 6, 6, 10)], field, peak, dir, GRID, 6, 5, 1, walls)
+
+    expect(at(field, GRID, 2, 1)).toBe(0)
+    expect(at(peak, GRID, 2, 1)).toBe(0)
+    expect(at(field, GRID, 1, 1)).toBeGreaterThan(0)
+  })
 })

@@ -5,6 +5,7 @@ import {
   createWorld,
   deleteAntType,
   getAntTypes,
+  placeObstacleRect,
   setAntCount,
   setNestType,
   spawnAntWithType,
@@ -15,6 +16,7 @@ import {
 import type { AntType, PheromoneKind } from './sim'
 import { obstacleCount, wallCount } from './sim/walls'
 import { createRenderer } from './render/canvasRenderer'
+import type { DragArea } from './render/canvasRenderer'
 import { attachPointer } from './input/pointer'
 import { applyTool } from './input/actions'
 import { toolById } from './input/tools'
@@ -53,8 +55,8 @@ interface GameState {
   tool: ToolId
   brush: number
   pointer: { x: number; y: number } | null
+  dragArea: DragArea | null
   seed: number
-  maze: boolean
 }
 
 const state: GameState = {
@@ -63,20 +65,15 @@ const state: GameState = {
   tool: 'attract',
   brush: 14,
   pointer: null,
+  dragArea: null,
   seed: 1,
-  maze: true,
 }
 
 const storedTypes = loadTypeStore()
 let world = createWorld(
   storedTypes
-    ? {
-        seed: 1,
-        maze: state.maze,
-        types: storedTypes.types,
-        nestTypeId: storedTypes.nestTypeId,
-      }
-    : { seed: 1, maze: state.maze },
+    ? { seed: 1, types: storedTypes.types, nestTypeId: storedTypes.nestTypeId }
+    : { seed: 1 },
 )
 
 function persistTypes(): void {
@@ -142,7 +139,6 @@ function resetWorld(seed: number = state.seed): void {
   state.seed = seed
   world = createWorld({
     seed,
-    maze: state.maze,
     params: world.params,
     types: world.types,
     nestTypeId: world.nestTypeId,
@@ -163,17 +159,15 @@ const controls = createControls(controlsEl, {
   },
   onReset: () => resetWorld(),
   onNewSeed: () => resetWorld(Math.floor(Math.random() * 2 ** 31)),
-  onToggleMaze: () => {
-    state.maze = !state.maze
-    controls.setMaze(state.maze)
-    resetWorld()
-  },
 })
 
-controls.setMaze(state.maze)
-
-attachPointer(canvas, renderer, state, (x, y) => {
-  applyTool(world, state.tool, x, y, state.brush)
+attachPointer(canvas, renderer, state, {
+  apply: (x, y) => {
+    applyTool(world, state.tool, x, y, state.brush)
+  },
+  applyRect: (x0, y0, x1, y1) => {
+    placeObstacleRect(world, x0, y0, x1, y1)
+  },
 })
 
 hintEl.textContent = toolById(state.tool).hint
@@ -211,6 +205,7 @@ function frame(now: number): void {
     brush: state.brush,
     pointer: state.pointer,
     visiblePheromones: pheromoneFilter.visible(),
+    dragArea: state.dragArea,
   })
   hud.update(world)
   requestAnimationFrame(frame)
@@ -235,7 +230,6 @@ declare global {
       nestType(): string
       typeCounts(): Record<string, number>
       visiblePheromones(): PheromoneKind[]
-      maze(): boolean
       reset(seed?: number): void
     }
   }
@@ -268,7 +262,6 @@ window.ants = {
   },
   visiblePheromones: () =>
     PHEROMONE_KINDS.filter((kind) => pheromoneFilter.visible().has(kind)),
-  maze: () => state.maze,
   reset: (seed?: number) => {
     resetWorld(seed ?? state.seed)
   },

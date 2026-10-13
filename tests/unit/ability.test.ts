@@ -21,7 +21,7 @@ import type { Ability, Ant, World } from '../../src/sim/types'
 const STEP = 1 / 60
 
 function emptyWorld(seed = 1): World {
-  return createWorld({ seed, maze: false, params: { antCount: 0, spawnInterval: 0 } })
+  return createWorld({ seed, params: { antCount: 0, spawnInterval: 0 } })
 }
 
 function addAnt(

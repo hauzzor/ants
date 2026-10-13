@@ -49,8 +49,9 @@ export function emitScent(
   radius: number,
   rate: number,
   dt: number,
+  walls?: Uint8Array,
 ): void {
   for (const food of foods) {
-    emitRadial(field, peak, dir, grid, food.x, food.y, radius, rate, dt)
+    emitRadial(field, peak, dir, grid, food.x, food.y, radius, rate, dt, walls)
   }
 }

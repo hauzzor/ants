@@ -1,13 +1,22 @@
 import type { PheromoneKind, World } from '../sim'
 import { COLORS, antColor } from './colors'
+import { normalizeDragArea } from './dragArea'
 import { pheromonePixel } from './pheromonePixel'
 import { wallColor } from './wallColor'
+
+export interface DragArea {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
 
 export interface UiRenderState {
   tool: string
   brush: number
   pointer: { x: number; y: number } | null
   visiblePheromones: ReadonlySet<PheromoneKind>
+  dragArea: DragArea | null
 }
 
 export interface Renderer {
@@ -169,6 +178,17 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
     ctx.stroke()
   }
 
+  function drawDragArea(area: DragArea): void {
+    const { x, y, width, height } = normalizeDragArea(area)
+    ctx.fillStyle = COLORS.obstaclePreview
+    ctx.fillRect(x, y, width, height)
+    ctx.strokeStyle = COLORS.obstacle
+    ctx.lineWidth = 2 / scale
+    ctx.setLineDash([6 / scale, 4 / scale])
+    ctx.strokeRect(x, y, width, height)
+    ctx.setLineDash([])
+  }
+
   return {
     resize,
 
@@ -188,7 +208,11 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
       drawFood(world)
       drawNest(world)
       drawAnts(world)
-      drawBrush(ui)
+      if (ui.dragArea) {
+        drawDragArea(ui.dragArea)
+      } else {
+        drawBrush(ui)
+      }
 
       ctx.strokeStyle = COLORS.arenaBorder
       ctx.lineWidth = 1 / scale

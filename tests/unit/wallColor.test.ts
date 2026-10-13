@@ -14,12 +14,16 @@ describe('wallColor', () => {
     expect(wallColor(Number.NaN)).toBeNull()
   })
 
-  it('maps maze walls to the wall color', () => {
+  it('maps walls to the wall color', () => {
     expect(wallColor(1)).toBe(COLORS.wall)
   })
 
   it('maps obstacles to the obstacle color', () => {
     expect(wallColor(2)).toBe(COLORS.obstacle)
+  })
+
+  it('uses a clearly grey obstacle tone', () => {
+    expect(COLORS.obstacle).toBe('#8b919b')
   })
 
   it('keeps obstacle and wall colors distinct', () => {

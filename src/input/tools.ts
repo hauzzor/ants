@@ -6,41 +6,45 @@ export type ToolId =
   | 'erasePheromone'
   | 'wall'
   | 'eraseWall'
+  | 'obstacle'
   | 'spawnAnt'
   | 'removeAnt'
+
+export type ToolMode = 'point' | 'paint' | 'rect'
 
 export interface ToolDef {
   id: ToolId
   label: string
   hint: string
-  continuous: boolean
+  mode: ToolMode
 }
 
 export const TOOLS: readonly ToolDef[] = [
-  { id: 'food', label: 'Food', hint: 'Click to drop a food pile', continuous: false },
-  { id: 'eraseFood', label: 'Erase food', hint: 'Remove food piles', continuous: false },
+  { id: 'food', label: 'Food', hint: 'Click to drop a food pile', mode: 'point' },
+  { id: 'eraseFood', label: 'Erase food', hint: 'Remove food piles', mode: 'point' },
   {
     id: 'attract',
     label: 'Attract',
     hint: 'Paint a trail ants are drawn to',
-    continuous: true,
+    mode: 'paint',
   },
   {
     id: 'repel',
     label: 'Repel',
     hint: 'Paint a trail ants avoid',
-    continuous: true,
+    mode: 'paint',
   },
   {
     id: 'erasePheromone',
     label: 'Clear trail',
     hint: 'Erase pheromone trails',
-    continuous: true,
+    mode: 'paint',
   },
-  { id: 'wall', label: 'Wall', hint: 'Draw obstacles', continuous: true },
-  { id: 'eraseWall', label: 'Erase wall', hint: 'Remove obstacles', continuous: true },
-  { id: 'spawnAnt', label: 'Add ant', hint: 'Drop an ant', continuous: false },
-  { id: 'removeAnt', label: 'Remove ant', hint: 'Remove nearby ants', continuous: false },
+  { id: 'wall', label: 'Wall', hint: 'Draw walls', mode: 'paint' },
+  { id: 'eraseWall', label: 'Erase wall', hint: 'Remove walls and obstacles', mode: 'paint' },
+  { id: 'obstacle', label: 'Obstacle', hint: 'Drag to draw a grey obstacle block', mode: 'rect' },
+  { id: 'spawnAnt', label: 'Add ant', hint: 'Drop an ant', mode: 'point' },
+  { id: 'removeAnt', label: 'Remove ant', hint: 'Remove nearby ants', mode: 'point' },
 ]
 
 export function toolById(id: ToolId): ToolDef {
