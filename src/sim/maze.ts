@@ -93,27 +93,25 @@ function unvisitedNeighbors(room: Room, roomCols: number, roomRows: number, visi
 function carveDoor(
   walls: Uint8Array,
   grid: Grid,
-  rng: Rng,
   cellSize: number,
   from: Room,
   to: Room,
 ): void {
-  let col: number
-  let row: number
-  if (to.rc > from.rc) {
-    col = (from.rc + 1) * cellSize
-    row = rng.int(rowStart(from.rr, cellSize), rowEnd(from.rr, grid, cellSize))
-  } else if (to.rc < from.rc) {
-    col = from.rc * cellSize
-    row = rng.int(rowStart(from.rr, cellSize), rowEnd(from.rr, grid, cellSize))
-  } else if (to.rr > from.rr) {
-    row = (from.rr + 1) * cellSize
-    col = rng.int(colStart(from.rc, cellSize), colEnd(from.rc, grid, cellSize))
-  } else {
-    row = from.rr * cellSize
-    col = rng.int(colStart(from.rc, cellSize), colEnd(from.rc, grid, cellSize))
+  if (to.rc !== from.rc) {
+    const col = to.rc > from.rc ? (from.rc + 1) * cellSize : from.rc * cellSize
+    const start = rowStart(from.rr, cellSize)
+    const end = rowEnd(from.rr, grid, cellSize)
+    for (let r = start; r <= end; r++) {
+      walls[index(grid, col, r)] = 0
+    }
+    return
   }
-  walls[index(grid, col, row)] = 0
+  const row = to.rr > from.rr ? (from.rr + 1) * cellSize : from.rr * cellSize
+  const start = colStart(from.rc, cellSize)
+  const end = colEnd(from.rc, grid, cellSize)
+  for (let c = start; c <= end; c++) {
+    walls[index(grid, c, row)] = 0
+  }
 }
 
 function carveMaze(
@@ -147,7 +145,7 @@ function carveMaze(
     }
     shuffle(options, rng)
     const next = options[0]!
-    carveDoor(walls, grid, rng, cellSize, current, next)
+    carveDoor(walls, grid, cellSize, current, next)
     visited[next.rr * roomCols + next.rc] = 1
     stack.push(next)
   }

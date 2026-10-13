@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { createWorld } from '../../src/sim/world'
 import { isWallAt, wallCount, obstacleCount } from '../../src/sim/walls'
-import { NEST_PLAZA_RADIUS, DEFAULT_MAZE_OBSTACLES } from '../../src/sim/maze'
+import {
+  NEST_PLAZA_RADIUS,
+  DEFAULT_MAZE_CELL_SIZE,
+  DEFAULT_MAZE_OBSTACLES,
+} from '../../src/sim/maze'
 import { index, worldToCell, cellCenter } from '../../src/sim/grid'
 import type { Grid, World } from '../../src/sim/types'
 
@@ -93,7 +97,7 @@ describe('maze generation', () => {
     const coarse = createWorld({ seed: 1, params: { antCount: 0 } })
     const fine = createWorld({ seed: 1, mazeCellSize: 3, params: { antCount: 0 } })
 
-    expect(wallCount(coarse.walls)).toBeLessThan(wallCount(fine.walls) * 0.7)
+    expect(wallCount(coarse.walls)).toBeLessThan(wallCount(fine.walls) * 0.6)
     expect(openCellCount(coarse.walls)).toBeGreaterThan(openCellCount(fine.walls))
     expect(obstacleCount(coarse.walls)).toBe(DEFAULT_MAZE_OBSTACLES)
     expect(reachableOpenCells(coarse)).toBe(openCellCount(coarse.walls))
@@ -103,6 +107,44 @@ describe('maze generation', () => {
       for (let col = 0; col < grid.cols; col++) {
         if (cellDistance(coarse, col, row) <= NEST_PLAZA_RADIUS) {
           expect(walls[index(grid, col, row)]).toBe(0)
+        }
+      }
+    }
+  })
+
+  it('opens the full shared segment between adjacent rooms', () => {
+    const world = createWorld({ seed: 1, params: { antCount: 0 } })
+    const { grid, walls } = world
+    const cellSize = DEFAULT_MAZE_CELL_SIZE
+
+    for (let row = 1; row < grid.rows - 1; row++) {
+      for (let col = 1; col < grid.cols - 1; col++) {
+        const onColLine = col % cellSize === 0
+        const onRowLine = row % cellSize === 0
+        if (onColLine === onRowLine) {
+          continue
+        }
+        if (cellDistance(world, col, row) <= NEST_PLAZA_RADIUS) {
+          continue
+        }
+        if (walls[index(grid, col, row)] !== 0) {
+          continue
+        }
+
+        if (onColLine) {
+          const rr = Math.floor(row / cellSize)
+          const start = rr * cellSize + 1
+          const end = Math.min(rr * cellSize + cellSize - 1, grid.rows - 2)
+          for (let r = start; r <= end; r++) {
+            expect(walls[index(grid, col, r)]).toBe(0)
+          }
+        } else {
+          const rc = Math.floor(col / cellSize)
+          const start = rc * cellSize + 1
+          const end = Math.min(rc * cellSize + cellSize - 1, grid.cols - 2)
+          for (let c = start; c <= end; c++) {
+            expect(walls[index(grid, c, row)]).toBe(0)
+          }
         }
       }
     }
