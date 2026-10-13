@@ -16,6 +16,10 @@ function emptyField(grid: Grid): Float32Array {
   return new Float32Array(grid.cols * grid.rows)
 }
 
+function emptyDir(grid: Grid): { x: Float32Array; y: Float32Array } {
+  return { x: emptyField(grid), y: emptyField(grid) }
+}
+
 function at(field: Float32Array, grid: Grid, col: number, row: number): number {
   return field[index(grid, col, row)] ?? 0
 }
@@ -77,7 +81,7 @@ describe('pruneDepleted', () => {
 describe('emitScent', () => {
   it('emits within the radius and leaves cells beyond it untouched', () => {
     const field = emptyField(GRID)
-    emitScent([createFood(0, 6, 6, 10)], field, GRID, 6, 5, 1)
+    emitScent([createFood(0, 6, 6, 10)], field, emptyField(GRID), emptyDir(GRID), GRID, 6, 5, 1)
 
     expect(at(field, GRID, 1, 1)).toBeGreaterThan(0)
     expect(at(field, GRID, 1, 2)).toBeGreaterThan(0)
@@ -88,7 +92,7 @@ describe('emitScent', () => {
 
   it('falls off from the center toward the edge', () => {
     const field = emptyField(GRID)
-    emitScent([createFood(0, 6, 6, 10)], field, GRID, 6, 5, 1)
+    emitScent([createFood(0, 6, 6, 10)], field, emptyField(GRID), emptyDir(GRID), GRID, 6, 5, 1)
 
     expect(at(field, GRID, 1, 1)).toBeGreaterThan(at(field, GRID, 1, 2))
     expect(at(field, GRID, 1, 2)).toBeGreaterThan(at(field, GRID, 0, 0))
@@ -97,8 +101,8 @@ describe('emitScent', () => {
   it('scales the deposit with rate', () => {
     const single = emptyField(GRID)
     const double = emptyField(GRID)
-    emitScent([createFood(0, 6, 6, 10)], single, GRID, 6, 5, 1)
-    emitScent([createFood(0, 6, 6, 10)], double, GRID, 6, 10, 1)
+    emitScent([createFood(0, 6, 6, 10)], single, emptyField(GRID), emptyDir(GRID), GRID, 6, 5, 1)
+    emitScent([createFood(0, 6, 6, 10)], double, emptyField(GRID), emptyDir(GRID), GRID, 6, 10, 1)
 
     expect(at(double, GRID, 1, 1)).toBeCloseTo(at(single, GRID, 1, 1) * 2, 5)
     expect(at(double, GRID, 1, 2)).toBeCloseTo(at(single, GRID, 1, 2) * 2, 5)
@@ -107,8 +111,8 @@ describe('emitScent', () => {
   it('scales the deposit with dt', () => {
     const single = emptyField(GRID)
     const double = emptyField(GRID)
-    emitScent([createFood(0, 6, 6, 10)], single, GRID, 6, 5, 1)
-    emitScent([createFood(0, 6, 6, 10)], double, GRID, 6, 5, 2)
+    emitScent([createFood(0, 6, 6, 10)], single, emptyField(GRID), emptyDir(GRID), GRID, 6, 5, 1)
+    emitScent([createFood(0, 6, 6, 10)], double, emptyField(GRID), emptyDir(GRID), GRID, 6, 5, 2)
 
     expect(at(double, GRID, 1, 1)).toBeCloseTo(at(single, GRID, 1, 1) * 2, 5)
     expect(at(double, GRID, 1, 2)).toBeCloseTo(at(single, GRID, 1, 2) * 2, 5)
@@ -124,7 +128,16 @@ describe('emitScent', () => {
     ]
     for (const [radius, rate, dt] of cases) {
       const field = emptyField(GRID)
-      emitScent([createFood(0, 6, 6, 10)], field, GRID, radius, rate, dt)
+      emitScent(
+        [createFood(0, 6, 6, 10)],
+        field,
+        emptyField(GRID),
+        emptyDir(GRID),
+        GRID,
+        radius,
+        rate,
+        dt,
+      )
       expect(isZero(field)).toBe(true)
     }
   })
@@ -132,9 +145,34 @@ describe('emitScent', () => {
   it('only mutates the passed field', () => {
     const field = emptyField(GRID)
     const other = emptyField(GRID)
-    emitScent([createFood(0, 6, 6, 10)], field, GRID, 6, 5, 1)
+    emitScent([createFood(0, 6, 6, 10)], field, emptyField(GRID), emptyDir(GRID), GRID, 6, 5, 1)
 
     expect(field.some((value) => value > 0)).toBe(true)
     expect(isZero(other)).toBe(true)
+  })
+
+  it('raises the peak for every cell it scents', () => {
+    const field = emptyField(GRID)
+    const peak = emptyField(GRID)
+    emitScent([createFood(0, 6, 6, 10)], field, peak, emptyDir(GRID), GRID, 6, 5, 1)
+
+    expect(at(peak, GRID, 1, 1)).toBeCloseTo(at(field, GRID, 1, 1), 6)
+    expect(at(peak, GRID, 1, 2)).toBeCloseTo(at(field, GRID, 1, 2), 6)
+    expect(at(peak, GRID, 1, 1)).toBeGreaterThan(0)
+  })
+
+  it('records the outward direction from the source', () => {
+    const field = emptyField(GRID)
+    const peak = emptyField(GRID)
+    const dir = emptyDir(GRID)
+    emitScent([createFood(0, 6, 6, 10)], field, peak, dir, GRID, 6, 5, 1)
+
+    const right = index(GRID, 2, 1)
+    expect(dir.x[right]).toBeGreaterThan(0)
+    expect(dir.y[right]).toBeCloseTo(0, 6)
+
+    const down = index(GRID, 1, 2)
+    expect(dir.y[down]).toBeGreaterThan(0)
+    expect(dir.x[down]).toBeCloseTo(0, 6)
   })
 })

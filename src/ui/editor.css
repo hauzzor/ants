@@ -228,3 +228,25 @@
   line-height: 1.35;
   color: var(--muted);
 }
+
+.pheromone-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pheromone-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pheromone-filter-row input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.pheromone-filter-label {
+  color: var(--muted);
+}

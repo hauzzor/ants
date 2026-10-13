@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createWorld, stepWorld } from '../../src/sim/world'
 import { sample } from '../../src/sim/pheromone'
+import { index } from '../../src/sim/grid'
 import { totalFood } from '../../src/sim/food'
 import { wallCount, isWallAt } from '../../src/sim/walls'
 import {
@@ -29,6 +30,20 @@ describe('paintPheromone', () => {
     expect(sample(world.pheromones.repel, world.grid, 100, 80)).toBeGreaterThan(0)
     expect(sample(world.pheromones.attract, world.grid, 100, 80)).toBe(0)
   })
+
+  it('raises the peak for every painted cell', () => {
+    const world = createWorld({ params: { antCount: 0 } })
+    paintPheromone(world, 'attract', 100, 80, 8, 10)
+    expect(world.pheromones.peaks.attract.some((value) => value > 0)).toBe(true)
+    expect(sample(world.pheromones.peaks.attract, world.grid, 100, 80)).toBeGreaterThan(0)
+  })
+
+  it('leaves painted cells direction-less', () => {
+    const world = createWorld({ params: { antCount: 0 } })
+    paintPheromone(world, 'attract', 100, 80, 8, 10)
+    expect(world.pheromones.dirs.attract.x.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.dirs.attract.y.every((value) => value === 0)).toBe(true)
+  })
 })
 
 describe('erasePheromone', () => {
@@ -39,6 +54,31 @@ describe('erasePheromone', () => {
     erasePheromone(world, 100, 80, 12)
     expect(sample(world.pheromones.attract, world.grid, 100, 80)).toBe(0)
     expect(sample(world.pheromones.repel, world.grid, 100, 80)).toBe(0)
+  })
+
+  it('clears the peaks of every pheromone kind in the radius', () => {
+    const world = createWorld({ params: { antCount: 0 } })
+    paintPheromone(world, 'attract', 100, 80, 8, 10)
+    paintPheromone(world, 'repel', 100, 80, 8, 10)
+    erasePheromone(world, 100, 80, 12)
+    expect(world.pheromones.peaks.attract.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.peaks.repel.every((value) => value === 0)).toBe(true)
+  })
+
+  it('clears the directions of every pheromone kind in the radius', () => {
+    const world = createWorld({ params: { antCount: 0 } })
+    const i = index(world.grid, 25, 20)
+    world.pheromones.dirs.attract.x[i] = 1
+    world.pheromones.dirs.attract.y[i] = 2
+    world.pheromones.dirs.repel.x[i] = 3
+    world.pheromones.dirs.repel.y[i] = 4
+
+    erasePheromone(world, 100, 80, 12)
+
+    expect(world.pheromones.dirs.attract.x[i]).toBe(0)
+    expect(world.pheromones.dirs.attract.y[i]).toBe(0)
+    expect(world.pheromones.dirs.repel.x[i]).toBe(0)
+    expect(world.pheromones.dirs.repel.y[i]).toBe(0)
   })
 })
 

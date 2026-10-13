@@ -9,7 +9,8 @@ import {
 } from '../../src/sim/antTypes'
 import { createFood } from '../../src/sim/food'
 import { isWallAt } from '../../src/sim/walls'
-import { deposit, sample } from '../../src/sim/pheromone'
+import { deposit, sample, sampleDirection } from '../../src/sim/pheromone'
+import { paintPheromone } from '../../src/sim/tools'
 import { DEFAULT_PARAMS } from '../../src/sim/params'
 import { PHEROMONE_KINDS } from '../../src/sim/types'
 import type { Ability, AntType, World } from '../../src/sim/types'
@@ -24,6 +25,8 @@ function snapshot(world: World) {
     carrying: ant.carrying,
     typeId: ant.typeId,
     lifespan: ant.lifespan,
+    lastNestContact: ant.lastNestContact,
+    lastFoodContact: ant.lastFoodContact,
     abilities: JSON.stringify(ant.abilities),
   }))
 }
@@ -177,7 +180,15 @@ describe('stepWorld', () => {
 
   it('decays player-painted pheromone over time', () => {
     const world = createWorld({ params: { antCount: 0 } })
-    deposit(world.pheromones.attract, world.grid, 100, 80, 100)
+    deposit(
+      world.pheromones.attract,
+      world.pheromones.peaks.attract,
+      world.pheromones.dirs.attract,
+      world.grid,
+      100,
+      80,
+      100,
+    )
     const before = sample(world.pheromones.attract, world.grid, 100, 80)
     run(world, 120)
     const after = sample(world.pheromones.attract, world.grid, 100, 80)
@@ -192,6 +203,106 @@ describe('stepWorld', () => {
     expect(snapshot(a)).toEqual(snapshot(b))
     expect(a.metrics).toEqual(b.metrics)
     expect(Array.from(a.pheromones.home)).toEqual(Array.from(b.pheromones.home))
+    expect(Array.from(a.pheromones.peaks.home)).toEqual(Array.from(b.pheromones.peaks.home))
+  })
+})
+
+describe('pheromone lifetime floor', () => {
+  it('culls player-painted pheromone to exactly zero after enough steps', () => {
+    const world = createWorld({
+      params: { antCount: 0, pheromoneDiffusion: 0, pheromoneDecay: 0.5 },
+    })
+    deposit(
+      world.pheromones.attract,
+      world.pheromones.peaks.attract,
+      world.pheromones.dirs.attract,
+      world.grid,
+      100,
+      80,
+      100,
+    )
+
+    run(world, 400)
+
+    expect(world.pheromones.attract.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.peaks.attract.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.dirs.attract.x.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.dirs.attract.y.every((value) => value === 0)).toBe(true)
+  })
+
+  it('culls emitted pheromone to exactly zero once emitters stop', () => {
+    const world = createWorld({
+      params: { antCount: 1, spawnInterval: 0, pheromoneDiffusion: 0, pheromoneDecay: 0.5 },
+      types: {
+        emitter: type({
+          id: 'emitter',
+          abilities: [{ kind: 'emit', pheromone: 'repel', intensity: 10, condition: 'always' }],
+        }),
+      },
+      nestTypeId: 'emitter',
+    })
+
+    run(world, 1)
+    expect(world.pheromones.repel.some((value) => value > 0)).toBe(true)
+
+    world.ants = []
+    run(world, 400)
+
+    expect(world.pheromones.repel.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.peaks.repel.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.dirs.repel.x.every((value) => value === 0)).toBe(true)
+    expect(world.pheromones.dirs.repel.y.every((value) => value === 0)).toBe(true)
+  })
+
+  it('culls player-painted pheromone to exactly zero with default diffusion', () => {
+    const world = createWorld({ params: { antCount: 0, spawnInterval: 0 } })
+    paintPheromone(world, 'attract', world.width / 2, world.height / 2, 4, 6)
+
+    run(world, 8000)
+
+    const total = world.pheromones.attract.reduce((sum, value) => sum + value, 0)
+    expect(total).toBe(0)
+    expect(world.pheromones.peaks.attract.every((value) => value === 0)).toBe(true)
+  })
+})
+
+describe('nest scent emission', () => {
+  it('emits home pheromone around the nest with no ants', () => {
+    const world = createWorld({ params: { antCount: 0, spawnInterval: 0 } })
+
+    stepWorld(world, STEP)
+
+    expect(sample(world.pheromones.home, world.grid, world.nest.x, world.nest.y)).toBeGreaterThan(0)
+    expect(sample(world.pheromones.home, world.grid, 20, 20)).toBe(0)
+    expect(world.pheromones.peaks.home.some((value) => value > 0)).toBe(true)
+  })
+
+  it('records the outward direction from the nest', () => {
+    const world = createWorld({ params: { antCount: 0, spawnInterval: 0 } })
+
+    stepWorld(world, STEP)
+
+    const dir = sampleDirection(
+      world.pheromones,
+      'home',
+      world.grid,
+      world.nest.x + 6,
+      world.nest.y,
+    )
+    expect(dir.magnitude).toBeGreaterThan(0)
+    expect(dir.x).toBeGreaterThan(0)
+  })
+
+  it('is deterministic with nest scent emission', () => {
+    const a = createWorld({ seed: 11, params: { antCount: 0, spawnInterval: 0 } })
+    const b = createWorld({ seed: 11, params: { antCount: 0, spawnInterval: 0 } })
+
+    run(a, 60)
+    run(b, 60)
+
+    expect(Array.from(a.pheromones.home)).toEqual(Array.from(b.pheromones.home))
+    expect(Array.from(a.pheromones.dirs.home.x)).toEqual(Array.from(b.pheromones.dirs.home.x))
+    expect(Array.from(a.pheromones.dirs.home.y)).toEqual(Array.from(b.pheromones.dirs.home.y))
   })
 })
 
@@ -224,6 +335,7 @@ describe('food scent emission', () => {
     run(b, 120)
 
     expect(Array.from(a.pheromones.food)).toEqual(Array.from(b.pheromones.food))
+    expect(Array.from(a.pheromones.peaks.food)).toEqual(Array.from(b.pheromones.peaks.food))
     expect(snapshot(a)).toEqual(snapshot(b))
   })
 })
@@ -449,6 +561,7 @@ describe('lifecycle', () => {
     expect(snapshot(a)).toEqual(snapshot(b))
     expect(a.spawnTimer).toBe(b.spawnTimer)
     expect(Array.from(a.pheromones.food)).toEqual(Array.from(b.pheromones.food))
+    expect(Array.from(a.pheromones.peaks.food)).toEqual(Array.from(b.pheromones.peaks.food))
     expect(a.metrics).toEqual(b.metrics)
   })
 })

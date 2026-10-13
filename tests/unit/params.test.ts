@@ -13,6 +13,15 @@ describe('DEFAULT_PARAMS', () => {
   it('has a positive default colony size', () => {
     expect(DEFAULT_PARAMS.antCount).toBeGreaterThan(0)
   })
+
+  it('defaults the detection threshold to one tenth', () => {
+    expect(DEFAULT_PARAMS.pheromoneDetectThreshold).toBe(0.1)
+  })
+
+  it('defaults the nest scent to the food scent shape', () => {
+    expect(DEFAULT_PARAMS.homeScentRate).toBe(5)
+    expect(DEFAULT_PARAMS.homeScentRadius).toBe(16)
+  })
 })
 
 describe('createParams', () => {

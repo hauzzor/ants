@@ -139,7 +139,10 @@ test('blank ants are inert until given abilities', async ({ page }) => {
   await page.getByTestId('control-step').click()
   await page.getByTestId('control-step').click()
   await page.getByTestId('control-step').click()
-  expect(await page.evaluate(() => window.ants!.stats().homePheromone)).toBe(0)
+  const blankStats = await page.evaluate(() => window.ants!.stats())
+  expect(blankStats.foodScent).toBe(0)
+  expect(blankStats.attract).toBe(0)
+  expect(await page.evaluate(() => window.ants!.snapshot().collected)).toBe(0)
 
   await page.getByTestId('new-type').click()
   await page.getByTestId('ant-type-name').fill('Emitter')
@@ -158,6 +161,25 @@ test('blank ants are inert until given abilities', async ({ page }) => {
     .poll(() => page.evaluate(() => window.ants!.typeCounts()['custom-1'] ?? 0))
     .toBe(1)
 
+  const homeBeforeEmitter = await page.evaluate(() => window.ants!.stats().homePheromone)
+  await page.getByTestId('control-step').click()
+  const homeAfterEmitter = await page.evaluate(() => window.ants!.stats().homePheromone)
+  expect(homeAfterEmitter).toBeGreaterThan(homeBeforeEmitter)
+})
+
+test('the nest emits home pheromone even with no ants', async ({ page }) => {
+  await page.getByTestId('control-play').click()
+  await page.evaluate(() => window.ants!.reset(1))
+
+  await page.getByTestId('slider-colony').evaluate((el) => {
+    const input = el as HTMLInputElement
+    input.value = '0'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await expect.poll(() => page.evaluate(() => window.ants!.snapshot().ants)).toBe(0)
+
+  await page.getByTestId('control-step').click()
+  await page.getByTestId('control-step').click()
   await page.getByTestId('control-step').click()
   expect(await page.evaluate(() => window.ants!.stats().homePheromone)).toBeGreaterThan(0)
 })

@@ -1,5 +1,6 @@
 import { forEachCellInCircle, index } from './grid'
 import { createFood } from './food'
+import { raisePeak } from './pheromone'
 import { spawnAnt, spawnAntNearNest } from './ant'
 import { setWallCircle } from './walls'
 import { PHEROMONE_KINDS } from './types'
@@ -16,10 +17,13 @@ export function paintPheromone(
   amount: number,
 ): void {
   const field = world.pheromones[kind]
+  const peak = world.pheromones.peaks[kind]
   forEachCellInCircle(world.grid, x, y, radius, (col, row, distance) => {
     const falloff = radius > 0 ? 1 - distance / radius : 1
     const i = index(world.grid, col, row)
-    field[i] = (field[i] ?? 0) + amount * falloff
+    const value = (field[i] ?? 0) + amount * falloff
+    field[i] = value
+    raisePeak(peak, i, value)
   })
 }
 
@@ -28,6 +32,9 @@ export function erasePheromone(world: World, x: number, y: number, radius: numbe
     const i = index(world.grid, col, row)
     for (const kind of PHEROMONE_KINDS) {
       world.pheromones[kind][i] = 0
+      world.pheromones.peaks[kind][i] = 0
+      world.pheromones.dirs[kind].x[i] = 0
+      world.pheromones.dirs[kind].y[i] = 0
     }
   })
 }

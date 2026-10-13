@@ -15,6 +15,8 @@ export function createAnt(
   lifespan: number,
   abilities: Ability[],
   typeId = 'blank',
+  lastNestContact = 0,
+  lastFoodContact = 0,
 ): Ant {
   return {
     id,
@@ -27,6 +29,8 @@ export function createAnt(
     typeId,
     lifespan,
     abilities: cloneAbilities(abilities),
+    lastNestContact,
+    lastFoodContact,
   }
 }
 
@@ -44,6 +48,8 @@ export function spawnAnt(world: World, x: number, y: number): Ant {
     type.lifespan,
     type.abilities,
     type.id,
+    world.time,
+    world.time,
   )
   world.ants.push(ant)
   return ant
@@ -72,6 +78,8 @@ export function spawnAntWithType(world: World, type: AntType): Ant {
     type.lifespan,
     type.abilities,
     type.id,
+    world.time,
+    world.time,
   )
   world.ants.push(ant)
   return ant
@@ -84,6 +92,10 @@ function normalizeAngle(angle: number): number {
 export function updateAnt(world: World, ant: Ant, dt: number): void {
   const { params, grid, walls, rng } = world
 
+  if (Math.hypot(world.nest.x - ant.x, world.nest.y - ant.y) <= params.nestRadius) {
+    ant.lastNestContact = world.time
+  }
+
   if (!ant.carrying) {
     const food = findFoodAt(world.foods, ant.x, ant.y, params.pickupRadius)
     if (food && food.amount > 0) {
@@ -91,6 +103,7 @@ export function updateAnt(world: World, ant: Ant, dt: number): void {
       if (taken > 0) {
         ant.carrying = true
         ant.state = 'return'
+        ant.lastFoodContact = world.time
         world.metrics.foodCollected += taken
         ant.angle = normalizeAngle(ant.angle + Math.PI)
       }

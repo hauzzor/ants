@@ -1,5 +1,6 @@
 import './style.css'
 import {
+  PHEROMONE_KINDS,
   createAntType,
   createWorld,
   deleteAntType,
@@ -11,7 +12,7 @@ import {
   totalFood,
   updateAntType,
 } from './sim'
-import type { AntType } from './sim'
+import type { AntType, PheromoneKind } from './sim'
 import { wallCount } from './sim/walls'
 import { createRenderer } from './render/canvasRenderer'
 import { attachPointer } from './input/pointer'
@@ -23,6 +24,7 @@ import { createPalette } from './ui/palette'
 import { createSliders } from './ui/sliders'
 import { createControls } from './ui/controls'
 import { createAntPanel } from './ui/antPanel'
+import { createPheromoneFilter } from './ui/pheromoneFilter'
 import { loadTypeStore, saveTypeStore } from './ui/typeStore'
 
 const FIXED_DT = 1 / 60
@@ -42,6 +44,7 @@ const controlsEl = requireElement<HTMLElement>('#controls')
 const paletteEl = requireElement<HTMLElement>('#palette')
 const slidersEl = requireElement<HTMLElement>('#sliders')
 const antPanelEl = requireElement<HTMLElement>('#ant-panel')
+const pheromoneFilterEl = requireElement<HTMLElement>('#pheromone-filter')
 const hintEl = requireElement<HTMLElement>('#hint')
 
 interface GameState {
@@ -75,6 +78,7 @@ const state: GameState = {
 
 const renderer = createRenderer(canvas)
 const hud = createHud(metricsEl)
+const pheromoneFilter = createPheromoneFilter(pheromoneFilterEl)
 
 createPalette(
   paletteEl,
@@ -187,7 +191,12 @@ function frame(now: number): void {
     }
   }
 
-  renderer.render(world, { tool: state.tool, brush: state.brush, pointer: state.pointer })
+  renderer.render(world, {
+    tool: state.tool,
+    brush: state.brush,
+    pointer: state.pointer,
+    visiblePheromones: pheromoneFilter.visible(),
+  })
   hud.update(world)
   requestAnimationFrame(frame)
 }
@@ -209,6 +218,7 @@ declare global {
       types(): AntType[]
       nestType(): string
       typeCounts(): Record<string, number>
+      visiblePheromones(): PheromoneKind[]
       reset(seed?: number): void
     }
   }
@@ -238,6 +248,8 @@ window.ants = {
     }
     return counts
   },
+  visiblePheromones: () =>
+    PHEROMONE_KINDS.filter((kind) => pheromoneFilter.visible().has(kind)),
   reset: (seed?: number) => {
     resetWorld(seed ?? state.seed)
   },

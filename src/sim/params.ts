@@ -7,7 +7,10 @@ export interface SimParams {
   foodAmount: number
   foodScentRate: number
   foodScentRadius: number
+  homeScentRate: number
+  homeScentRadius: number
   spawnInterval: number
+  pheromoneDetectThreshold: number
 }
 
 export const DEFAULT_PARAMS: SimParams = {
@@ -19,7 +22,10 @@ export const DEFAULT_PARAMS: SimParams = {
   foodAmount: 60,
   foodScentRate: 5,
   foodScentRadius: 16,
+  homeScentRate: 5,
+  homeScentRadius: 16,
   spawnInterval: 1,
+  pheromoneDetectThreshold: 0.1,
 }
 
 export function createParams(overrides: Partial<SimParams> = {}): SimParams {

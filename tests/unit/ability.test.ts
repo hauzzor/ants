@@ -5,11 +5,15 @@ import {
   wanderTurnDelta,
   followTurnDelta,
   emitAbilities,
+  sourceFreshness,
+  pheromoneContactSource,
+  PHEROMONE_FRESHNESS_HALF_LIFE,
 } from '../../src/sim/ability'
 import { createWorld, stepWorld } from '../../src/sim/world'
 import { createAnt } from '../../src/sim/ant'
 import { createRng } from '../../src/sim/rng'
-import { sample } from '../../src/sim/pheromone'
+import { sample, sampleDirection } from '../../src/sim/pheromone'
+import { createFood } from '../../src/sim/food'
 import { paintPheromone } from '../../src/sim/tools'
 import { isWallAt } from '../../src/sim/walls'
 import type { Ability, Ant, World } from '../../src/sim/types'
@@ -117,6 +121,14 @@ describe('followTurnDelta', () => {
     return world
   }
 
+  function directedWorld(): World {
+    const world = emptyWorld()
+    world.pheromones.attract.fill(1)
+    world.pheromones.dirs.attract.x.fill(1)
+    world.pheromones.dirs.attract.y.fill(0)
+    return world
+  }
+
   it('turns toward a stronger gradient', () => {
     const world = gradientWorld()
     const ant = addAnt(world, [toward], 120, 80, 0)
@@ -154,6 +166,87 @@ describe('followTurnDelta', () => {
     const away: Ability = { ...toward, direction: 'away', turnRate: 1 } as Ability
     const ant = addAnt(world, [toward, away], 120, 80, 0)
     expect(followTurnDelta(world, ant, 0.5)).toBeCloseTo(-1 + 0.5)
+  })
+
+  it('turns on a gradient above the detection threshold', () => {
+    const world = gradientWorld()
+    const ant = addAnt(world, [toward], 120, 80, 0)
+    expect(followTurnDelta(world, ant, 0.5)).toBeCloseTo(-1)
+  })
+
+  it('ignores samples below the detection threshold', () => {
+    const world = gradientWorld()
+    for (let i = 0; i < world.pheromones.attract.length; i++) {
+      world.pheromones.attract[i] = (world.pheromones.attract[i] ?? 0) * 0.001
+    }
+    const ant = addAnt(world, [toward], 120, 80, 0)
+    expect(followTurnDelta(world, ant, 0.5)).toBe(0)
+  })
+
+  it('treats a sample exactly at the detection threshold as detectable', () => {
+    const world = gradientWorld()
+    const ant = addAnt(world, [toward], 120, 80, 0)
+    const leftX = ant.x + Math.cos(-toward.sensorAngle) * toward.sensorDistance
+    const leftY = ant.y + Math.sin(-toward.sensorAngle) * toward.sensorDistance
+    world.params.pheromoneDetectThreshold = sample(
+      world.pheromones.attract,
+      world.grid,
+      leftX,
+      leftY,
+    )
+    expect(followTurnDelta(world, ant, 0.5)).toBeCloseTo(-1)
+  })
+
+  it('steers toward the encoded direction of the strongest trail', () => {
+    const world = directedWorld()
+    const ant = addAnt(world, [toward], 120, 80, Math.PI / 2)
+    expect(followTurnDelta(world, ant, 0.5)).toBeCloseTo(-1)
+  })
+
+  it('steers away from the encoded direction when direction is away', () => {
+    const world = directedWorld()
+    const ant = addAnt(world, [{ ...toward, direction: 'away' } as Ability], 120, 80, Math.PI / 2)
+    expect(followTurnDelta(world, ant, 0.5)).toBeCloseTo(1)
+  })
+
+  it('uses the gradient when the strongest trail has no direction', () => {
+    const world = gradientWorld()
+    const ant = addAnt(world, [toward], 120, 80, 0)
+    expect(followTurnDelta(world, ant, 0.5)).toBeCloseTo(-1)
+  })
+
+  it('ignores encoded directions when the field is below the detection threshold', () => {
+    const world = directedWorld()
+    world.pheromones.attract.fill(0.05)
+    const ant = addAnt(world, [toward], 120, 80, Math.PI / 2)
+    expect(followTurnDelta(world, ant, 0.5)).toBe(0)
+  })
+})
+
+describe('sourceFreshness', () => {
+  it('is full strength on contact', () => {
+    expect(sourceFreshness(0)).toBe(1)
+  })
+
+  it('halves every half life', () => {
+    expect(PHEROMONE_FRESHNESS_HALF_LIFE).toBe(8)
+    expect(sourceFreshness(PHEROMONE_FRESHNESS_HALF_LIFE)).toBeCloseTo(0.5, 10)
+    expect(sourceFreshness(PHEROMONE_FRESHNESS_HALF_LIFE * 2)).toBeCloseTo(0.25, 10)
+  })
+
+  it('strictly decreases with elapsed time', () => {
+    expect(sourceFreshness(1)).toBeGreaterThan(sourceFreshness(2))
+    expect(sourceFreshness(2)).toBeGreaterThan(sourceFreshness(8))
+    expect(sourceFreshness(8)).toBeGreaterThan(sourceFreshness(50))
+  })
+})
+
+describe('pheromoneContactSource', () => {
+  it('maps each pheromone kind to its contact source', () => {
+    expect(pheromoneContactSource('home')).toBe('nest')
+    expect(pheromoneContactSource('food')).toBe('food')
+    expect(pheromoneContactSource('attract')).toBe('food')
+    expect(pheromoneContactSource('repel')).toBe('nest')
   })
 })
 
@@ -195,6 +288,102 @@ describe('emitAbilities', () => {
     emitAbilities(world, ant, 0.25)
     expect(sample(world.pheromones.food, world.grid, 62, 82)).toBeCloseTo(1)
   })
+
+  it('emits at half strength after one half life without contact', () => {
+    const world = emptyWorld()
+    world.time = PHEROMONE_FRESHNESS_HALF_LIFE
+    const ant = addAnt(
+      world,
+      [{ kind: 'emit', pheromone: 'home', intensity: 10, condition: 'always' }],
+      62,
+      82,
+    )
+    emitAbilities(world, ant, 1)
+    expect(sample(world.pheromones.home, world.grid, 62, 82)).toBeCloseTo(5)
+  })
+
+  it('uses the food contact time for food-linked pheromones', () => {
+    const world = emptyWorld()
+    world.time = PHEROMONE_FRESHNESS_HALF_LIFE
+    const ant = addAnt(
+      world,
+      [{ kind: 'emit', pheromone: 'attract', intensity: 10, condition: 'always' }],
+      62,
+      82,
+    )
+    ant.lastFoodContact = 0
+    emitAbilities(world, ant, 1)
+    expect(sample(world.pheromones.attract, world.grid, 62, 82)).toBeCloseTo(5)
+  })
+
+  it('treats a contact time in the future as full freshness', () => {
+    const world = emptyWorld()
+    world.time = 5
+    const ant = addAnt(
+      world,
+      [{ kind: 'emit', pheromone: 'home', intensity: 10, condition: 'always' }],
+      62,
+      82,
+    )
+    ant.lastNestContact = 9
+    emitAbilities(world, ant, 1)
+    expect(sample(world.pheromones.home, world.grid, 62, 82)).toBeCloseTo(10)
+  })
+
+  it('records the ant heading as the emission direction', () => {
+    const world = emptyWorld()
+    const ant = addAnt(
+      world,
+      [{ kind: 'emit', pheromone: 'home', intensity: 10, condition: 'always' }],
+      62,
+      82,
+      0,
+    )
+    emitAbilities(world, ant, 1)
+    const dir = sampleDirection(world.pheromones, 'home', world.grid, 62, 82)
+    expect(dir.x).toBeCloseTo(1, 6)
+    expect(dir.y).toBeCloseTo(0, 6)
+    expect(dir.magnitude).toBeCloseTo(10, 5)
+  })
+
+  it('records an off-axis heading and still scales by freshness', () => {
+    const world = emptyWorld()
+    world.time = PHEROMONE_FRESHNESS_HALF_LIFE
+    const angle = Math.PI / 3
+    const ant = addAnt(
+      world,
+      [{ kind: 'emit', pheromone: 'home', intensity: 10, condition: 'always' }],
+      62,
+      82,
+      angle,
+    )
+    emitAbilities(world, ant, 1)
+    const dir = sampleDirection(world.pheromones, 'home', world.grid, 62, 82)
+    expect(dir.x).toBeCloseTo(Math.cos(angle), 6)
+    expect(dir.y).toBeCloseTo(Math.sin(angle), 6)
+    expect(dir.magnitude).toBeCloseTo(5, 5)
+  })
+
+  it('records food pickup time for emission and freshness', () => {
+    const world = emptyWorld()
+    const ant = addAnt(world, [], 100, 80, 0)
+    world.foods.push(createFood(world.nextId++, 100, 80, 5))
+    world.time = 3
+
+    stepWorld(world, STEP)
+
+    expect(ant.lastFoodContact).toBe(3)
+  })
+
+  it('refreshes the nest contact time whenever the ant is near the nest', () => {
+    const world = emptyWorld()
+    const ant = addAnt(world, [], world.nest.x, world.nest.y, 0)
+    world.time = 4
+
+    stepWorld(world, STEP)
+
+    expect(ant.lastNestContact).toBe(4)
+  })
 })
 
 describe('blank ants', () => {
@@ -209,9 +398,8 @@ describe('blank ants', () => {
     expect(ant.x).toBe(60)
     expect(ant.y).toBe(80)
     expect(ant.angle).toBeCloseTo(0.7, 12)
-    const home = world.pheromones.home.reduce((sum, value) => sum + value, 0)
+    expect(sample(world.pheromones.home, world.grid, ant.x, ant.y)).toBeLessThan(1e-6)
     const food = world.pheromones.food.reduce((sum, value) => sum + value, 0)
-    expect(home).toBe(0)
     expect(food).toBe(0)
   })
 })

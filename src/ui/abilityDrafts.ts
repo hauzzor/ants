@@ -30,7 +30,7 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = {
   sensorDistance: 'How far ahead sensors sample, in cells.',
   turnRate: 'Maximum turn per step toward the sensed trail.',
   pheromone: 'Which trail this ability reads or writes.',
-  direction: 'Steer toward the strongest scent, or away from it.',
+  direction: 'Follow the direction stored in the trail, or go against it.',
   condition: 'When this ability applies, based on whether the ant carries food.',
 }
 

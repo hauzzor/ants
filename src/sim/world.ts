@@ -3,7 +3,7 @@ import { createParams } from './params'
 import type { SimParams } from './params'
 import { createGrid } from './grid'
 import { createMetrics } from './metrics'
-import { createFields, decay, diffuse } from './pheromone'
+import { createFields, cullDiluted, decay, diffuse, emitRadial, recordPeaks } from './pheromone'
 import { createWalls, addBorderWalls } from './walls'
 import { updateAnt, spawnAntNearNest } from './ant'
 import { BLANK_TYPE, cloneAbilities, getAntType } from './antTypes'
@@ -116,9 +116,23 @@ export function stepWorld(world: World, dt: number): void {
   emitScent(
     world.foods,
     pheromones.food,
+    pheromones.peaks.food,
+    pheromones.dirs.food,
     grid,
     params.foodScentRadius,
     params.foodScentRate,
+    dt,
+  )
+
+  emitRadial(
+    pheromones.home,
+    pheromones.peaks.home,
+    pheromones.dirs.home,
+    grid,
+    world.nest.x,
+    world.nest.y,
+    params.homeScentRadius,
+    params.homeScentRate,
     dt,
   )
 
@@ -138,8 +152,12 @@ export function stepWorld(world: World, dt: number): void {
 
   for (const kind of PHEROMONE_KINDS) {
     const field = pheromones[kind]
+    const peak = pheromones.peaks[kind]
+    const dir = pheromones.dirs[kind]
     diffuse(field, grid, params.pheromoneDiffusion, dt)
-    decay(field, params.pheromoneDecay, dt)
+    recordPeaks(field, peak)
+    decay(field, params.pheromoneDecay, dt, dir)
+    cullDiluted(field, peak, dir)
   }
 
   world.time += dt

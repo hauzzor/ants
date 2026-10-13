@@ -70,6 +70,8 @@ export interface Ant {
   typeId: string
   lifespan: number
   abilities: Ability[]
+  lastNestContact: number
+  lastFoodContact: number
 }
 
 export interface FoodSource {
@@ -88,11 +90,18 @@ export const PHEROMONE_KINDS: readonly PheromoneKind[] = [
   'repel',
 ]
 
+export interface DirectionField {
+  x: Float32Array
+  y: Float32Array
+}
+
 export interface PheromoneFields {
   home: Float32Array
   food: Float32Array
   attract: Float32Array
   repel: Float32Array
+  peaks: Record<PheromoneKind, Float32Array>
+  dirs: Record<PheromoneKind, DirectionField>
 }
 
 export interface World {

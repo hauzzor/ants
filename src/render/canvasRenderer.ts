@@ -1,10 +1,12 @@
-import type { World } from '../sim'
+import type { PheromoneKind, World } from '../sim'
 import { COLORS, antColor } from './colors'
+import { pheromonePixel } from './pheromonePixel'
 
 export interface UiRenderState {
   tool: string
   brush: number
   pointer: { x: number; y: number } | null
+  visiblePheromones: ReadonlySet<PheromoneKind>
 }
 
 export interface Renderer {
@@ -63,33 +65,31 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
     return imageData
   }
 
-  function drawPheromones(world: World): void {
+  function drawPheromones(world: World, visible: ReadonlySet<PheromoneKind>): void {
+    if (visible.size === 0) {
+      return
+    }
     const data = ensureImageData(world)
     const { cols, rows } = world.grid
     const pixels = data.data
     const { home, food, attract, repel } = world.pheromones
 
     for (let i = 0; i < cols * rows; i++) {
-      const h = home[i] ?? 0
-      const f = food[i] ?? 0
-      const a = attract[i] ?? 0
-      const r = repel[i] ?? 0
-
-      const nh = h / (h + 3)
-      const nf = f / (f + 3)
-      const na = a / (a + 3)
-      const nr = r / (r + 3)
-
-      const red = Math.min(255, (nf * 0.25 + na + nr + nh * 0.15) * 255)
-      const green = Math.min(255, (nf * 0.9 + nh * 0.5 + nr * 0.55 + na * 0.3) * 255)
-      const blue = Math.min(255, (nh + na * 0.85 + nf * 0.15) * 255)
-      const alpha = Math.min(235, (nh + nf + na + nr) * 190)
+      const pixel = pheromonePixel(
+        {
+          home: home[i] ?? 0,
+          food: food[i] ?? 0,
+          attract: attract[i] ?? 0,
+          repel: repel[i] ?? 0,
+        },
+        visible,
+      )
 
       const o = i * 4
-      pixels[o] = red
-      pixels[o + 1] = green
-      pixels[o + 2] = blue
-      pixels[o + 3] = alpha
+      pixels[o] = pixel.r
+      pixels[o + 1] = pixel.g
+      pixels[o + 2] = pixel.b
+      pixels[o + 3] = pixel.a
     }
 
     off.putImageData(data, 0, 0)
@@ -176,7 +176,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
       ctx.fillStyle = COLORS.arenaBackground
       ctx.fillRect(0, 0, world.width, world.height)
 
-      drawPheromones(world)
+      drawPheromones(world, ui.visiblePheromones)
       drawWalls(world)
       drawFood(world)
       drawNest(world)

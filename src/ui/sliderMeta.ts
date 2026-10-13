@@ -52,6 +52,22 @@ export const SIM_SLIDERS: readonly SimSliderMeta[] = [
     max: 30,
     step: 0.5,
   },
+  {
+    key: 'pheromoneDetectThreshold',
+    label: 'Detect threshold',
+    description: 'Pheromone strength below this is ignored by ant sensors.',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    key: 'homeScentRate',
+    label: 'Home scent',
+    description: 'Home pheromone emitted by the nest per step.',
+    min: 0,
+    max: 30,
+    step: 0.5,
+  },
 ]
 
 export const SPECIAL_SLIDERS: readonly SpecialSliderMeta[] = [

@@ -1,5 +1,5 @@
-import { forEachCellInCircle, index } from './grid'
-import type { FoodSource, Grid } from './types'
+import { emitRadial } from './pheromone'
+import type { DirectionField, FoodSource, Grid } from './types'
 
 export function createFood(id: number, x: number, y: number, amount: number): FoodSource {
   return { id, x, y, amount }
@@ -43,20 +43,14 @@ export function pruneDepleted(foods: FoodSource[]): FoodSource[] {
 export function emitScent(
   foods: FoodSource[],
   field: Float32Array,
+  peak: Float32Array,
+  dir: DirectionField,
   grid: Grid,
   radius: number,
   rate: number,
   dt: number,
 ): void {
-  if (radius <= 0 || rate <= 0 || dt <= 0) {
-    return
-  }
-  const amount = rate * dt
   for (const food of foods) {
-    forEachCellInCircle(grid, food.x, food.y, radius, (col, row, distance) => {
-      const falloff = 1 - distance / radius
-      const i = index(grid, col, row)
-      field[i] = (field[i] ?? 0) + amount * falloff
-    })
+    emitRadial(field, peak, dir, grid, food.x, food.y, radius, rate, dt)
   }
 }

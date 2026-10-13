@@ -150,6 +150,8 @@ describe('slider metadata', () => {
       'pheromoneDecay',
       'pheromoneDiffusion',
       'foodScentRate',
+      'pheromoneDetectThreshold',
+      'homeScentRate',
     ])
     expect(SPECIAL_SLIDERS.map((slider) => slider.key)).toEqual(['colony', 'speed', 'brush'])
   })
