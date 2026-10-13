@@ -6,7 +6,7 @@ import { createMetrics } from './metrics'
 import { createFields, decay, diffuse } from './pheromone'
 import { createWalls, addBorderWalls } from './walls'
 import { createAnt, updateAnt } from './ant'
-import { pruneDepleted } from './food'
+import { emitScent, pruneDepleted } from './food'
 import { PHEROMONE_KINDS } from './types'
 import type { Vec2, World } from './types'
 
@@ -73,6 +73,15 @@ export function stepWorld(world: World, dt: number): void {
   }
 
   world.foods = pruneDepleted(world.foods)
+
+  emitScent(
+    world.foods,
+    pheromones.food,
+    grid,
+    params.foodScentRadius,
+    params.foodScentRate,
+    dt,
+  )
 
   for (const kind of PHEROMONE_KINDS) {
     const field = pheromones[kind]

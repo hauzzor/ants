@@ -145,6 +145,7 @@ declare global {
         foodSources: number
         foodTotal: number
         attract: number
+        foodScent: number
         walls: number
       }
       reset(seed?: number): void
@@ -163,6 +164,7 @@ window.ants = {
     foodSources: world.foods.length,
     foodTotal: totalFood(world.foods),
     attract: world.pheromones.attract.reduce((sum, value) => sum + value, 0),
+    foodScent: world.pheromones.food.reduce((sum, value) => sum + value, 0),
     walls: wallCount(world.walls),
   }),
   reset: (seed?: number) => {

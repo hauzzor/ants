@@ -15,6 +15,8 @@ export interface SimParams {
   pickupRadius: number
   nestRadius: number
   foodAmount: number
+  foodScentRate: number
+  foodScentRadius: number
 }
 
 export const DEFAULT_PARAMS: SimParams = {
@@ -34,6 +36,8 @@ export const DEFAULT_PARAMS: SimParams = {
   pickupRadius: 4,
   nestRadius: 6,
   foodAmount: 60,
+  foodScentRate: 5,
+  foodScentRadius: 16,
 }
 
 export function createParams(overrides: Partial<SimParams> = {}): SimParams {

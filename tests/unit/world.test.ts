@@ -110,6 +110,39 @@ describe('stepWorld', () => {
   })
 })
 
+describe('food scent emission', () => {
+  it('emits food pheromone around a source', () => {
+    const world = createWorld({ params: { antCount: 0 } })
+    const foodX = 120
+    const foodY = 80
+    world.foods.push(createFood(world.nextId++, foodX, foodY, 10))
+
+    stepWorld(world, STEP)
+
+    expect(sample(world.pheromones.food, world.grid, foodX, foodY)).toBeGreaterThan(0)
+    expect(sample(world.pheromones.food, world.grid, 20, 20)).toBe(0)
+  })
+
+  it('leaves the food field empty when there is no food', () => {
+    const world = createWorld({ seed: 5 })
+    stepWorld(world, STEP)
+    expect(world.pheromones.food.every((value) => value === 0)).toBe(true)
+  })
+
+  it('is deterministic with food scent emission', () => {
+    const a = createWorld({ seed: 42 })
+    const b = createWorld({ seed: 42 })
+    a.foods.push(createFood(a.nextId++, 100, 60, 1000))
+    b.foods.push(createFood(b.nextId++, 100, 60, 1000))
+
+    run(a, 120)
+    run(b, 120)
+
+    expect(Array.from(a.pheromones.food)).toEqual(Array.from(b.pheromones.food))
+    expect(snapshot(a)).toEqual(snapshot(b))
+  })
+})
+
 describe('foraging', () => {
   it('picks up food and records it', () => {
     const world = createWorld({ params: { antCount: 1 }, seed: 5 })

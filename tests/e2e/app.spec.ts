@@ -83,6 +83,28 @@ test('the colony size slider changes the number of ants', async ({ page }) => {
     .toBe(80)
 })
 
+test('food sources spread scent pheromone', async ({ page }) => {
+  await page.getByTestId('control-play').click()
+  await page.getByTestId('tool-food').click()
+  const box = await page.locator('canvas#arena').boundingBox()
+  if (!box) throw new Error('no canvas box')
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3)
+  await expect
+    .poll(() => page.evaluate(() => window.ants!.stats().foodSources))
+    .toBe(1)
+
+  await page.getByTestId('control-step').click()
+  await page.getByTestId('control-step').click()
+  const foodScent = await page.evaluate(() => window.ants!.stats().foodScent)
+  expect(foodScent).toBeGreaterThan(0)
+})
+
+test('the food scent slider is available', async ({ page }) => {
+  const slider = page.getByTestId('slider-foodScentRate')
+  await expect(slider).toBeVisible()
+  await expect(slider).toHaveValue('5')
+})
+
 test('reset restarts the clock', async ({ page }) => {
   await page.waitForTimeout(500)
   await page.getByTestId('control-reset').click()

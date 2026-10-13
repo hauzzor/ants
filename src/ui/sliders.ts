@@ -16,6 +16,7 @@ const SIM_SLIDERS: readonly SimSlider[] = [
   { key: 'sensorDistance', label: 'Sensor dist', min: 0, max: 20, step: 0.5 },
   { key: 'wanderStrength', label: 'Wander', min: 0, max: 5, step: 0.1 },
   { key: 'pheromoneDeposit', label: 'Deposit', min: 0, max: 30, step: 0.5 },
+  { key: 'foodScentRate', label: 'Food scent', min: 0, max: 30, step: 0.5 },
   { key: 'pheromoneDecay', label: 'Decay', min: 0, max: 1, step: 0.01 },
   { key: 'pheromoneDiffusion', label: 'Diffusion', min: 0, max: 1, step: 0.01 },
   { key: 'followStrength', label: 'Follow', min: 0, max: 8, step: 0.1 },
