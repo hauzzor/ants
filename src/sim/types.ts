@@ -15,6 +15,26 @@ export interface Grid {
 
 export type AntState = 'wander' | 'return'
 
+export interface AntBehavior {
+  speed: number
+  turnRate: number
+  sensorAngle: number
+  sensorDistance: number
+  wanderStrength: number
+  pheromoneDeposit: number
+  followStrength: number
+  attractStrength: number
+  repelStrength: number
+  nestBias: number
+  lifespan: number
+}
+
+export interface AntType {
+  id: string
+  name: string
+  description: string
+}
+
 export interface Ant {
   id: number
   x: number
@@ -24,7 +44,8 @@ export interface Ant {
   carrying: boolean
   wander: number
   age: number
-  lifespan: number
+  typeId: string
+  behavior: AntBehavior
 }
 
 export interface FoodSource {
@@ -62,6 +83,9 @@ export interface World {
   walls: Uint8Array
   pheromones: PheromoneFields
   metrics: Metrics
+  types: Record<string, AntType>
+  nestTypeId: string
+  nextTypeId: number
   time: number
   spawnTimer: number
   nextId: number

@@ -1,5 +1,15 @@
 import './style.css'
-import { createWorld, stepWorld, setAntCount, totalFood } from './sim'
+import {
+  behaviorForType,
+  createAntType,
+  createWorld,
+  getAntTypes,
+  setAntCount,
+  setNestType,
+  stepWorld,
+  totalFood,
+} from './sim'
+import type { AntBehavior, AntType } from './sim'
 import { wallCount } from './sim/walls'
 import { createRenderer } from './render/canvasRenderer'
 import { attachPointer } from './input/pointer'
@@ -10,6 +20,7 @@ import { createHud } from './ui/hud'
 import { createPalette } from './ui/palette'
 import { createSliders } from './ui/sliders'
 import { createControls } from './ui/controls'
+import { createAntPanel } from './ui/antPanel'
 
 const FIXED_DT = 1 / 60
 const MAX_STEPS_PER_FRAME = 240
@@ -27,6 +38,7 @@ const metricsEl = requireElement<HTMLElement>('#metrics')
 const controlsEl = requireElement<HTMLElement>('#controls')
 const paletteEl = requireElement<HTMLElement>('#palette')
 const slidersEl = requireElement<HTMLElement>('#sliders')
+const antPanelEl = requireElement<HTMLElement>('#ant-panel')
 const hintEl = requireElement<HTMLElement>('#hint')
 
 interface GameState {
@@ -75,10 +87,24 @@ const sliders = createSliders(slidersEl, {
   },
 })
 
+const antPanel = createAntPanel(antPanelEl, {
+  getWorld: () => world,
+  onSelectType: (id) => {
+    setNestType(world, id)
+  },
+  onCreateType: (description) => createAntType(world, description),
+})
+
 function resetWorld(seed: number = state.seed): void {
   state.seed = seed
-  world = createWorld({ seed, params: world.params })
+  world = createWorld({
+    seed,
+    params: world.params,
+    types: world.types,
+    nestTypeId: world.nestTypeId,
+  })
   sliders.sync()
+  antPanel.refresh()
 }
 
 const controls = createControls(controlsEl, {
@@ -147,6 +173,10 @@ declare global {
         foodScent: number
         walls: number
       }
+      types(): AntType[]
+      nestType(): string
+      typeCounts(): Record<string, number>
+      typeBehavior(id: string): AntBehavior
       reset(seed?: number): void
     }
   }
@@ -166,6 +196,16 @@ window.ants = {
     foodScent: world.pheromones.food.reduce((sum, value) => sum + value, 0),
     walls: wallCount(world.walls),
   }),
+  types: () => getAntTypes(world),
+  nestType: () => world.nestTypeId,
+  typeCounts: () => {
+    const counts: Record<string, number> = {}
+    for (const ant of world.ants) {
+      counts[ant.typeId] = (counts[ant.typeId] ?? 0) + 1
+    }
+    return counts
+  },
+  typeBehavior: (id: string) => behaviorForType(world, id),
   reset: (seed?: number) => {
     resetWorld(seed ?? state.seed)
   },

@@ -123,3 +123,53 @@ test('reset restarts the clock', async ({ page }) => {
   const time = await page.evaluate(() => window.ants!.snapshot().time)
   expect(time).toBeLessThan(1)
 })
+
+test('creates an ant type from a natural-language description', async ({ page }) => {
+  await expect(page.getByTestId('nest-type').locator('option')).toHaveCount(3)
+
+  await page.getByTestId('ant-description').fill('fast curious scout')
+  await page.getByTestId('create-ant-type').click()
+
+  await expect(page.getByTestId('nest-type').locator('option')).toHaveCount(4)
+  await expect(page.getByTestId('nest-type')).toHaveValue('custom-1')
+  await expect(page.getByTestId('nest-type-description')).toHaveText('fast curious scout')
+
+  const [customSpeed, workerSpeed, customWander, workerWander] = await page.evaluate(() => [
+    window.ants!.typeBehavior('custom-1').speed,
+    window.ants!.typeBehavior('worker').speed,
+    window.ants!.typeBehavior('custom-1').wanderStrength,
+    window.ants!.typeBehavior('worker').wanderStrength,
+  ])
+  expect(customSpeed).toBeGreaterThan(workerSpeed)
+  expect(customWander).toBeGreaterThan(workerWander)
+  expect(await page.evaluate(() => window.ants!.nestType())).toBe('custom-1')
+})
+
+test('nest spawns the selected ant type', async ({ page }) => {
+  await page.getByTestId('control-play').click()
+
+  await page.getByTestId('ant-description').fill('fast curious scout')
+  await page.getByTestId('create-ant-type').click()
+
+  const workerCount = await page.evaluate(() => window.ants!.typeCounts()['worker'] ?? 0)
+
+  await page.getByTestId('tool-spawnAnt').click()
+  const box = await page.locator('canvas#arena').boundingBox()
+  if (!box) throw new Error('no canvas box')
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
+
+  await expect
+    .poll(() => page.evaluate(() => window.ants!.typeCounts()['custom-1'] ?? 0))
+    .toBe(1)
+  expect(await page.evaluate(() => window.ants!.typeCounts()['worker'] ?? 0)).toBe(workerCount)
+})
+
+test('reset preserves player-created types', async ({ page }) => {
+  await page.getByTestId('ant-description').fill('fast curious scout')
+  await page.getByTestId('create-ant-type').click()
+
+  await page.getByTestId('control-reset').click()
+
+  await expect(page.getByTestId('nest-type').locator('option[value="custom-1"]')).toHaveCount(1)
+  expect(await page.evaluate(() => window.ants!.nestType())).toBe('custom-1')
+})

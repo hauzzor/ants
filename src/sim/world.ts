@@ -6,9 +6,10 @@ import { createMetrics } from './metrics'
 import { createFields, decay, diffuse } from './pheromone'
 import { createWalls, addBorderWalls } from './walls'
 import { updateAnt, spawnAntNearNest } from './ant'
+import { BUILT_IN_TYPES } from './antTypes'
 import { emitScent, pruneDepleted } from './food'
 import { PHEROMONE_KINDS } from './types'
-import type { Vec2, World } from './types'
+import type { AntType, Vec2, World } from './types'
 
 const MAX_SPAWNS_PER_STEP = 8
 
@@ -26,6 +27,30 @@ export interface WorldOptions {
   seed?: number
   params?: Partial<SimParams>
   nest?: Vec2
+  types?: Record<string, AntType>
+  nestTypeId?: string
+}
+
+function createBuiltInTypes(): Record<string, AntType> {
+  const types: Record<string, AntType> = {}
+  for (const type of BUILT_IN_TYPES) {
+    types[type.id] = { ...type }
+  }
+  return types
+}
+
+function nextCustomTypeId(types: Record<string, AntType>): number {
+  let max = 0
+  for (const id of Object.keys(types)) {
+    const match = /^custom-(\d+)$/.exec(id)
+    if (match) {
+      const n = Number(match[1])
+      if (n > max) {
+        max = n
+      }
+    }
+  }
+  return max + 1
 }
 
 export function createWorld(options: WorldOptions = {}): World {
@@ -37,6 +62,10 @@ export function createWorld(options: WorldOptions = {}): World {
   const rng = createRng(seed)
   const params = createParams(options.params)
   const nest = options.nest ?? { x: width / 2, y: height / 2 }
+  const types = options.types ? { ...options.types } : createBuiltInTypes()
+  const fallbackTypeId = Object.keys(types)[0] ?? 'worker'
+  const nestTypeId =
+    options.nestTypeId && types[options.nestTypeId] ? options.nestTypeId : fallbackTypeId
 
   const walls = createWalls(grid)
   addBorderWalls(walls, grid)
@@ -53,6 +82,9 @@ export function createWorld(options: WorldOptions = {}): World {
     walls,
     pheromones: createFields(grid),
     metrics: createMetrics(),
+    types,
+    nestTypeId,
+    nextTypeId: nextCustomTypeId(types),
     time: 0,
     spawnTimer: 0,
     nextId: 1,
@@ -74,7 +106,7 @@ export function stepWorld(world: World, dt: number): void {
 
   world.foods = pruneDepleted(world.foods)
 
-  world.ants = world.ants.filter((ant) => ant.age < ant.lifespan)
+  world.ants = world.ants.filter((ant) => ant.age < ant.behavior.lifespan)
 
   emitScent(
     world.foods,

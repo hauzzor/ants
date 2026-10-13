@@ -1,5 +1,5 @@
 import type { World } from '../sim'
-import { COLORS } from './colors'
+import { COLORS, antColor } from './colors'
 
 export interface UiRenderState {
   tool: string
@@ -138,7 +138,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
       ctx.save()
       ctx.translate(ant.x, ant.y)
       ctx.rotate(ant.angle)
-      ctx.fillStyle = ant.carrying ? COLORS.antCarry : COLORS.ant
+      ctx.fillStyle = ant.carrying ? COLORS.antCarry : antColor(ant.typeId)
       ctx.beginPath()
       ctx.moveTo(1.7, 0)
       ctx.lineTo(-1.2, 1.1)

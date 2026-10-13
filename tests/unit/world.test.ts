@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createWorld, stepWorld } from '../../src/sim/world'
 import { createAnt } from '../../src/sim/ant'
+import { behaviorFromParams, behaviorForType, setNestType } from '../../src/sim/antTypes'
 import { createFood } from '../../src/sim/food'
 import { isWallAt } from '../../src/sim/walls'
 import { deposit } from '../../src/sim/pheromone'
@@ -207,7 +208,7 @@ describe('lifecycle', () => {
     for (const ant of world.ants) {
       expect(ant.age).toBeGreaterThanOrEqual(0)
       expect(ant.age).toBeLessThan(world.params.antLifespan)
-      expect(ant.lifespan).toBe(world.params.antLifespan)
+      expect(ant.behavior.lifespan).toBe(world.params.antLifespan)
     }
     const distinctAges = new Set(world.ants.map((ant) => ant.age))
     expect(distinctAges.size).toBeGreaterThan(1)
@@ -219,7 +220,7 @@ describe('lifecycle', () => {
     for (const ant of world.ants) {
       expect(ant.age).toBeGreaterThanOrEqual(0)
       expect(ant.age).toBeLessThan(10)
-      expect(ant.lifespan).toBe(10)
+      expect(ant.behavior.lifespan).toBe(10)
     }
   })
 
@@ -227,7 +228,7 @@ describe('lifecycle', () => {
     const world = createWorld({ params: { antCount: 2, spawnInterval: 0 } })
     const dying = world.ants[0]!
     const alive = world.ants[1]!
-    dying.age = dying.lifespan - 0.25
+    dying.age = dying.behavior.lifespan - 0.25
     alive.age = 0
 
     stepWorld(world, 0.25)
@@ -298,8 +299,8 @@ describe('lifecycle', () => {
     }
     const newer = world.ants[1]!
 
-    expect(newer.lifespan).toBe(999)
-    expect(older.lifespan).toBe(DEFAULT_PARAMS.antLifespan)
+    expect(newer.behavior.lifespan).toBe(999)
+    expect(older.behavior.lifespan).toBe(DEFAULT_PARAMS.antLifespan)
   })
 
   it('does not spawn automatically when spawnInterval is not positive', () => {
@@ -355,8 +356,8 @@ describe('lifecycle', () => {
       stepWorld(a, STEP)
       stepWorld(b, STEP)
     }
-    expect(a.ants.map((ant) => [ant.x, ant.y, ant.age, ant.lifespan])).toEqual(
-      b.ants.map((ant) => [ant.x, ant.y, ant.age, ant.lifespan]),
+    expect(a.ants.map((ant) => [ant.x, ant.y, ant.age, ant.behavior.lifespan])).toEqual(
+      b.ants.map((ant) => [ant.x, ant.y, ant.age, ant.behavior.lifespan]),
     )
     expect(a.spawnTimer).toBe(b.spawnTimer)
     expect(Array.from(a.pheromones.food)).toEqual(Array.from(b.pheromones.food))
@@ -364,17 +365,109 @@ describe('lifecycle', () => {
   })
 })
 
-describe('createAnt', () => {
-  it('builds an ant that starts wandering', () => {
-    const ant = createAnt(7, 50, 50, 0)
-    expect(ant).toMatchObject({ id: 7, x: 50, y: 50, state: 'wander', carrying: false })
-    expect(ant.age).toBe(0)
-    expect(ant.lifespan).toBe(DEFAULT_PARAMS.antLifespan)
+describe('ant types', () => {
+  it('spawns initial ants as the worker type', () => {
+    const world = createWorld({ params: { antCount: 5 } })
+    const worker = behaviorForType(world, 'worker')
+    for (const ant of world.ants) {
+      expect(ant.typeId).toBe('worker')
+      expect(ant.behavior).toEqual(worker)
+    }
   })
 
-  it('captures the given age and lifespan', () => {
-    const ant = createAnt(7, 50, 50, 0, 3, 12)
+  it('spawns the selected nest type with its rules applied', () => {
+    const world = createWorld({ params: { antCount: 0, spawnInterval: 1 } })
+    expect(setNestType(world, 'scout')).toBe(true)
+
+    for (let i = 0; i < 4; i++) {
+      stepWorld(world, 0.25)
+    }
+
+    const ant = world.ants[0]!
+    const worker = behaviorForType(world, 'worker')
+    const scout = behaviorForType(world, 'scout')
+    expect(ant.typeId).toBe('scout')
+    expect(ant.behavior).toEqual(scout)
+    expect(ant.behavior.speed).toBeGreaterThan(worker.speed)
+    expect(ant.behavior.wanderStrength).toBeGreaterThan(worker.wanderStrength)
+  })
+
+  it('snapshots behavior at spawn and leaves older ants untouched', () => {
+    const world = createWorld({ params: { antCount: 1, spawnInterval: 1 } })
+    const older = world.ants[0]!
+    older.age = 0
+    const originalSpeed = older.behavior.speed
+
+    world.params.antSpeed = originalSpeed + 20
+    for (let i = 0; i < 4; i++) {
+      stepWorld(world, 0.25)
+    }
+
+    const newer = world.ants[1]!
+    expect(older.behavior.speed).toBe(originalSpeed)
+    expect(newer.behavior.speed).toBe(world.params.antSpeed)
+  })
+
+  it('falls back to worker when the requested nest type is missing', () => {
+    const world = createWorld({ params: { antCount: 0 }, nestTypeId: 'ghost' })
+    expect(world.nestTypeId).toBe('worker')
+  })
+
+  it('honours a valid provided nest type', () => {
+    const world = createWorld({ params: { antCount: 0 }, nestTypeId: 'scout' })
+    expect(world.nestTypeId).toBe('scout')
+  })
+
+  it('uses provided types instead of the built-ins', () => {
+    const world = createWorld({
+      params: { antCount: 1 },
+      types: { queen: { id: 'queen', name: 'Queen', description: 'slow' } },
+      nestTypeId: 'queen',
+    })
+    expect(world.types['queen']).toBeDefined()
+    expect(world.types['worker']).toBeUndefined()
+    expect(world.ants[0]!.typeId).toBe('queen')
+  })
+
+  it('falls back to the first provided type when worker is absent', () => {
+    const world = createWorld({
+      params: { antCount: 1 },
+      types: { queen: { id: 'queen', name: 'Queen', description: '' } },
+    })
+    expect(world.nestTypeId).toBe('queen')
+    expect(world.ants[0]!.typeId).toBe('queen')
+  })
+
+  it('drives movement from the ant behavior snapshot, not live params', () => {
+    const world = createWorld({ params: { antCount: 1, antSpeed: 26 }, seed: 5 })
+    const ant = world.ants[0]!
+    ant.age = 0
+    const beforeX = ant.x
+    const beforeY = ant.y
+
+    world.params.antSpeed = 0
+    stepWorld(world, STEP)
+
+    expect(ant.x !== beforeX || ant.y !== beforeY).toBe(true)
+  })
+})
+
+describe('createAnt', () => {
+  const behavior = behaviorFromParams(DEFAULT_PARAMS)
+
+  it('builds an ant that starts wandering', () => {
+    const ant = createAnt(7, 50, 50, 0, behavior)
+    expect(ant).toMatchObject({ id: 7, x: 50, y: 50, state: 'wander', carrying: false })
+    expect(ant.age).toBe(0)
+    expect(ant.behavior).toEqual(behavior)
+    expect(ant.typeId).toBe('worker')
+  })
+
+  it('captures the given age, behavior and type', () => {
+    const custom = { ...behavior, lifespan: 12 }
+    const ant = createAnt(7, 50, 50, 0, custom, 3, 'scout')
     expect(ant.age).toBe(3)
-    expect(ant.lifespan).toBe(12)
+    expect(ant.behavior).toEqual(custom)
+    expect(ant.typeId).toBe('scout')
   })
 })
