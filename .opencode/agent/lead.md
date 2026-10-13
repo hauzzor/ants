@@ -28,8 +28,8 @@ simulator. Read AGENTS.md and follow it strictly.
   work.
 - After integrating, run `npm.cmd run validate`. When behavior changed, also
   run `npm.cmd run test:e2e`.
-- Commit each green increment with a concise imperative message. Push only
-  when the user explicitly asks.
+- Commit each green increment with a concise imperative message and push to
+  `origin` immediately after a green build. Never wait for an explicit order.
 - Ask before destructive git operations (force push, `reset --hard`, branch
   deletion).
 

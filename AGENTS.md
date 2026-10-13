@@ -67,4 +67,7 @@ agent file.
 ## Commit / push workflow
 
 - Commit after every build that passes tests.
+- Push to `origin` immediately after each green commit; do not wait for an
+  explicit user order. When behavior changed, `npm.cmd run test:e2e` must pass
+  before pushing.
 - Concise commit messages in the imperative mood (e.g. `add pheromone diffusion`).
