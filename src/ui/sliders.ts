@@ -10,21 +10,10 @@ interface SimSlider {
 }
 
 const SIM_SLIDERS: readonly SimSlider[] = [
-  { key: 'antSpeed', label: 'Speed', min: 0, max: 80, step: 1 },
-  { key: 'antTurnRate', label: 'Turn rate', min: 0, max: 10, step: 0.1 },
-  { key: 'antLifespan', label: 'Lifespan', min: 0, max: 180, step: 1 },
   { key: 'spawnInterval', label: 'Spawn interval', min: 0, max: 5, step: 0.1 },
-  { key: 'sensorAngle', label: 'Sensor angle', min: 0, max: 2, step: 0.05 },
-  { key: 'sensorDistance', label: 'Sensor dist', min: 0, max: 20, step: 0.5 },
-  { key: 'wanderStrength', label: 'Wander', min: 0, max: 5, step: 0.1 },
-  { key: 'pheromoneDeposit', label: 'Deposit', min: 0, max: 30, step: 0.5 },
-  { key: 'foodScentRate', label: 'Food scent', min: 0, max: 30, step: 0.5 },
   { key: 'pheromoneDecay', label: 'Decay', min: 0, max: 1, step: 0.01 },
   { key: 'pheromoneDiffusion', label: 'Diffusion', min: 0, max: 1, step: 0.01 },
-  { key: 'followStrength', label: 'Follow', min: 0, max: 8, step: 0.1 },
-  { key: 'attractStrength', label: 'Attract', min: 0, max: 8, step: 0.1 },
-  { key: 'repelStrength', label: 'Repel', min: 0, max: 8, step: 0.1 },
-  { key: 'nestBias', label: 'Nest bias', min: 0, max: 3, step: 0.05 },
+  { key: 'foodScentRate', label: 'Food scent', min: 0, max: 30, step: 0.5 },
 ]
 
 export interface SliderDeps {

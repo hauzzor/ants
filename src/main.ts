@@ -1,15 +1,17 @@
 import './style.css'
 import {
-  behaviorForType,
   createAntType,
   createWorld,
+  deleteAntType,
   getAntTypes,
   setAntCount,
   setNestType,
+  spawnAntWithType,
   stepWorld,
   totalFood,
+  updateAntType,
 } from './sim'
-import type { AntBehavior, AntType } from './sim'
+import type { AntType } from './sim'
 import { wallCount } from './sim/walls'
 import { createRenderer } from './render/canvasRenderer'
 import { attachPointer } from './input/pointer'
@@ -21,6 +23,7 @@ import { createPalette } from './ui/palette'
 import { createSliders } from './ui/sliders'
 import { createControls } from './ui/controls'
 import { createAntPanel } from './ui/antPanel'
+import { loadTypeStore, saveTypeStore } from './ui/typeStore'
 
 const FIXED_DT = 1 / 60
 const MAX_STEPS_PER_FRAME = 240
@@ -50,7 +53,16 @@ interface GameState {
   seed: number
 }
 
-let world = createWorld({ seed: 1 })
+const storedTypes = loadTypeStore()
+let world = createWorld(
+  storedTypes
+    ? { seed: 1, types: storedTypes.types, nestTypeId: storedTypes.nestTypeId }
+    : { seed: 1 },
+)
+
+function persistTypes(): void {
+  saveTypeStore({ types: world.types, nestTypeId: world.nestTypeId })
+}
 
 const state: GameState = {
   paused: false,
@@ -90,9 +102,29 @@ const sliders = createSliders(slidersEl, {
 const antPanel = createAntPanel(antPanelEl, {
   getWorld: () => world,
   onSelectType: (id) => {
-    setNestType(world, id)
+    if (setNestType(world, id)) persistTypes()
   },
-  onCreateType: (description) => createAntType(world, description),
+  onSaveType: (draft, id) => {
+    const type =
+      id === undefined
+        ? createAntType(world, draft)
+        : updateAntType(world, id, draft)
+          ? world.types[id]
+          : undefined
+    if (type) persistTypes()
+    return type
+  },
+  onDeleteType: (id) => {
+    if (deleteAntType(world, id)) persistTypes()
+  },
+  onPreviewType: (draft) => {
+    spawnAntWithType(world, {
+      id: 'preview',
+      name: draft.name,
+      lifespan: draft.lifespan,
+      abilities: draft.abilities,
+    })
+  },
 })
 
 function resetWorld(seed: number = state.seed): void {
@@ -171,12 +203,12 @@ declare global {
         foodTotal: number
         attract: number
         foodScent: number
+        homePheromone: number
         walls: number
       }
       types(): AntType[]
       nestType(): string
       typeCounts(): Record<string, number>
-      typeBehavior(id: string): AntBehavior
       reset(seed?: number): void
     }
   }
@@ -194,6 +226,7 @@ window.ants = {
     foodTotal: totalFood(world.foods),
     attract: world.pheromones.attract.reduce((sum, value) => sum + value, 0),
     foodScent: world.pheromones.food.reduce((sum, value) => sum + value, 0),
+    homePheromone: world.pheromones.home.reduce((sum, value) => sum + value, 0),
     walls: wallCount(world.walls),
   }),
   types: () => getAntTypes(world),
@@ -205,7 +238,6 @@ window.ants = {
     }
     return counts
   },
-  typeBehavior: (id: string) => behaviorForType(world, id),
   reset: (seed?: number) => {
     resetWorld(seed ?? state.seed)
   },

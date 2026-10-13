@@ -14,12 +14,6 @@ export const COLORS = {
   brushFill: 'rgba(255,255,255,0.08)',
 } as const
 
-const BUILT_IN_ANT_COLORS: Record<string, string> = {
-  worker: COLORS.ant,
-  scout: '#7fc8ff',
-  trailblazer: '#ffb36b',
-}
-
 function hashString(value: string): number {
   let hash = 0
   for (let i = 0; i < value.length; i++) {
@@ -29,9 +23,8 @@ function hashString(value: string): number {
 }
 
 export function antColor(typeId: string): string {
-  const builtIn = BUILT_IN_ANT_COLORS[typeId]
-  if (builtIn !== undefined) {
-    return builtIn
+  if (typeId === 'blank') {
+    return COLORS.ant
   }
   return `hsl(${hashString(typeId) % 360} 72% 72%)`
 }

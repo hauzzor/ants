@@ -1,149 +1,171 @@
-import type { SimParams } from './params'
-import type { AntBehavior, AntType, World } from './types'
+import { PHEROMONE_KINDS } from './types'
+import type {
+  Ability,
+  AntType,
+  AntTypeDraft,
+  Condition,
+  PheromoneKind,
+  World,
+} from './types'
 
-export const BUILT_IN_TYPES: readonly AntType[] = [
-  { id: 'worker', name: 'Worker', description: '' },
-  { id: 'scout', name: 'Scout', description: 'fast curious explorer with keen senses' },
-  { id: 'trailblazer', name: 'Trailblazer', description: 'hardworking loyal trail follower' },
-]
-
-export function behaviorFromParams(params: SimParams): AntBehavior {
-  return {
-    speed: params.antSpeed,
-    turnRate: params.antTurnRate,
-    sensorAngle: params.sensorAngle,
-    sensorDistance: params.sensorDistance,
-    wanderStrength: params.wanderStrength,
-    pheromoneDeposit: params.pheromoneDeposit,
-    followStrength: params.followStrength,
-    attractStrength: params.attractStrength,
-    repelStrength: params.repelStrength,
-    nestBias: params.nestBias,
-    lifespan: params.antLifespan,
-  }
+export const BLANK_TYPE: AntType = {
+  id: 'blank',
+  name: 'Blank',
+  lifespan: 60,
+  abilities: [],
 }
 
-interface FieldRule {
-  readonly words: readonly string[]
-  readonly multiplier: number
-}
+const MAX_NAME_LENGTH = 40
+const LIFESPAN_MIN = 1
+const LIFESPAN_MAX = 300
 
-const RULES: Record<keyof AntBehavior, readonly FieldRule[]> = {
-  speed: [
-    { words: ['fast', 'quick', 'speedy', 'swift', 'rapid'], multiplier: 1.5 },
-    { words: ['slow', 'sluggish', 'lazy'], multiplier: 0.6 },
-  ],
-  turnRate: [
-    { words: ['agile', 'nimble', 'twitchy', 'erratic'], multiplier: 1.6 },
-    { words: ['steady', 'calm', 'gentle'], multiplier: 0.6 },
-  ],
-  sensorAngle: [],
-  sensorDistance: [
-    { words: ['keen', 'farsighted', 'aware', 'far sighted'], multiplier: 1.5 },
-    { words: ['shortsighted', 'short sighted', 'near sighted'], multiplier: 0.6 },
-  ],
-  wanderStrength: [
-    {
-      words: ['wander', 'wanderer', 'explore', 'explorer', 'curious', 'scout', 'random'],
-      multiplier: 1.6,
-    },
-    { words: ['direct', 'focused', 'determined', 'purposeful'], multiplier: 0.5 },
-  ],
-  pheromoneDeposit: [
-    { words: ['hardworking', 'diligent', 'busy', 'industrious'], multiplier: 1.5 },
-    { words: ['lazy'], multiplier: 0.5 },
-  ],
-  followStrength: [
-    { words: ['follow', 'follower', 'trail', 'trailblazer', 'loyal'], multiplier: 1.6 },
-    { words: ['independent', 'loner', 'ignore', 'ignores'], multiplier: 0.3 },
-  ],
-  attractStrength: [
-    { words: ['food', 'hungry', 'greedy', 'forager', 'forage', 'foodie'], multiplier: 1.6 },
-  ],
-  repelStrength: [
-    { words: ['cautious', 'careful', 'shy', 'avoid', 'avoids', 'repelled'], multiplier: 1.6 },
-    { words: ['brave', 'bold', 'fearless', 'reckless'], multiplier: 0.4 },
-  ],
-  nestBias: [
-    { words: ['home', 'homing', 'loyal', 'nest'], multiplier: 1.5 },
-    { words: ['adventurous', 'roam', 'roamer'], multiplier: 0.5 },
-  ],
-  lifespan: [
-    { words: ['long lived', 'immortal', 'ancient'], multiplier: 1.5 },
-    { words: ['short lived', 'mayfly', 'fleeting'], multiplier: 0.5 },
-  ],
-}
-
-const CLAMPS: Record<keyof AntBehavior, readonly [number, number]> = {
-  speed: [2, 80],
-  turnRate: [0.5, 12],
-  sensorAngle: [0.1, 2],
-  sensorDistance: [2, 24],
-  wanderStrength: [0, 6],
-  pheromoneDeposit: [0, 40],
-  followStrength: [0, 10],
-  attractStrength: [0, 10],
-  repelStrength: [0, 10],
-  nestBias: [0, 4],
-  lifespan: [5, 300],
-}
+const PHEROMONE_KIND_SET: ReadonlySet<string> = new Set(PHEROMONE_KINDS)
+const CONDITION_SET: ReadonlySet<string> = new Set<Condition>([
+  'always',
+  'carrying',
+  'empty',
+])
+const DIRECTION_SET: ReadonlySet<string> = new Set(['toward', 'away'])
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-function firstMultiplier(padded: string, rules: readonly FieldRule[]): number | undefined {
-  for (const rule of rules) {
-    for (const word of rule.words) {
-      if (padded.includes(` ${word} `)) {
-        return rule.multiplier
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isPheromoneKind(value: unknown): value is PheromoneKind {
+  return typeof value === 'string' && PHEROMONE_KIND_SET.has(value)
+}
+
+function isCondition(value: unknown): value is Condition {
+  return typeof value === 'string' && CONDITION_SET.has(value)
+}
+
+function isDirection(value: unknown): value is 'toward' | 'away' {
+  return typeof value === 'string' && DIRECTION_SET.has(value)
+}
+
+function sanitizeAbility(raw: unknown): Ability | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+  switch (raw.kind) {
+    case 'walk':
+      if (!isFiniteNumber(raw.speed)) {
+        return undefined
       }
+      return { kind: 'walk', speed: clamp(raw.speed, 0, 80) }
+    case 'wander':
+      if (!isFiniteNumber(raw.strength)) {
+        return undefined
+      }
+      return { kind: 'wander', strength: clamp(raw.strength, 0, 10) }
+    case 'emit':
+      if (!isFiniteNumber(raw.intensity)) {
+        return undefined
+      }
+      if (!isPheromoneKind(raw.pheromone) || !isCondition(raw.condition)) {
+        return undefined
+      }
+      return {
+        kind: 'emit',
+        pheromone: raw.pheromone,
+        intensity: clamp(raw.intensity, 0, 40),
+        condition: raw.condition,
+      }
+    case 'follow':
+      if (
+        !isFiniteNumber(raw.sensorAngle) ||
+        !isFiniteNumber(raw.sensorDistance) ||
+        !isFiniteNumber(raw.turnRate)
+      ) {
+        return undefined
+      }
+      if (
+        !isPheromoneKind(raw.pheromone) ||
+        !isDirection(raw.direction) ||
+        !isCondition(raw.condition)
+      ) {
+        return undefined
+      }
+      return {
+        kind: 'follow',
+        pheromone: raw.pheromone,
+        direction: raw.direction,
+        sensorAngle: clamp(raw.sensorAngle, 0, 2),
+        sensorDistance: clamp(raw.sensorDistance, 0, 24),
+        turnRate: clamp(raw.turnRate, 0, 12),
+        condition: raw.condition,
+      }
+    default:
+      return undefined
+  }
+}
+
+export function cloneAbilities(abilities: Ability[]): Ability[] {
+  return abilities.map((ability) => ({ ...ability }))
+}
+
+export function sanitizeAbilities(abilities: readonly unknown[]): Ability[] {
+  const result: Ability[] = []
+  for (const ability of abilities) {
+    const sanitized = sanitizeAbility(ability)
+    if (sanitized) {
+      result.push(sanitized)
     }
   }
-  return undefined
+  return result
 }
 
-function resolveField(
-  padded: string,
-  field: keyof AntBehavior,
-  base: number,
-  alwaysClamp = false,
-): number {
-  const [min, max] = CLAMPS[field]
-  const multiplier = firstMultiplier(padded, RULES[field])
-  if (multiplier === undefined) {
-    return alwaysClamp ? clamp(base, min, max) : base
-  }
-  return clamp(base * multiplier, min, max)
-}
-
-export function parseAntBehavior(description: string, base: AntBehavior): AntBehavior {
-  const padded = ` ${description.toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `
-  return {
-    speed: resolveField(padded, 'speed', base.speed),
-    turnRate: resolveField(padded, 'turnRate', base.turnRate),
-    sensorAngle: resolveField(padded, 'sensorAngle', base.sensorAngle, true),
-    sensorDistance: resolveField(padded, 'sensorDistance', base.sensorDistance),
-    wanderStrength: resolveField(padded, 'wanderStrength', base.wanderStrength),
-    pheromoneDeposit: resolveField(padded, 'pheromoneDeposit', base.pheromoneDeposit),
-    followStrength: resolveField(padded, 'followStrength', base.followStrength),
-    attractStrength: resolveField(padded, 'attractStrength', base.attractStrength),
-    repelStrength: resolveField(padded, 'repelStrength', base.repelStrength),
-    nestBias: resolveField(padded, 'nestBias', base.nestBias),
-    lifespan: resolveField(padded, 'lifespan', base.lifespan),
-  }
-}
-
-export function typeNameFromDescription(description: string): string {
-  const trimmed = description.trim()
+function sanitizeName(name: string): string {
+  const trimmed = name.trim()
   if (trimmed.length === 0) {
-    return 'Custom'
+    return 'Custom ant'
   }
-  return trimmed
-    .split(/\s+/)
-    .slice(0, 3)
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(' ')
+  return trimmed.slice(0, MAX_NAME_LENGTH)
+}
+
+export function createAntType(world: World, draft: AntTypeDraft): AntType {
+  const id = `custom-${world.nextTypeId++}`
+  const type: AntType = {
+    id,
+    name: sanitizeName(draft.name),
+    lifespan: clamp(draft.lifespan, LIFESPAN_MIN, LIFESPAN_MAX),
+    abilities: sanitizeAbilities(draft.abilities),
+  }
+  world.types[id] = type
+  return type
+}
+
+export function updateAntType(world: World, id: string, draft: AntTypeDraft): boolean {
+  if (id === 'blank') {
+    return false
+  }
+  const type = world.types[id]
+  if (!type) {
+    return false
+  }
+  type.name = sanitizeName(draft.name)
+  type.lifespan = clamp(draft.lifespan, LIFESPAN_MIN, LIFESPAN_MAX)
+  type.abilities = sanitizeAbilities(draft.abilities)
+  return true
+}
+
+export function deleteAntType(world: World, id: string): boolean {
+  if (id === 'blank' || !world.types[id]) {
+    return false
+  }
+  delete world.types[id]
+  if (world.nestTypeId === id) {
+    world.nestTypeId = 'blank'
+  }
+  return true
 }
 
 export function getAntTypes(world: World): AntType[] {
@@ -154,26 +176,10 @@ export function getAntType(world: World, id: string): AntType | undefined {
   return world.types[id]
 }
 
-export function createAntType(world: World, description: string): AntType {
-  const id = `custom-${world.nextTypeId++}`
-  const type: AntType = { id, name: typeNameFromDescription(description), description }
-  world.types[id] = type
-  return type
-}
-
 export function setNestType(world: World, id: string): boolean {
   if (!world.types[id]) {
     return false
   }
   world.nestTypeId = id
   return true
-}
-
-export function behaviorForType(world: World, id: string): AntBehavior {
-  const base = behaviorFromParams(world.params)
-  const type = world.types[id] ?? world.types['worker']
-  if (!type) {
-    return base
-  }
-  return parseAntBehavior(type.description, base)
 }

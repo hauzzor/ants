@@ -1,234 +1,333 @@
 import { describe, it, expect } from 'vitest'
 import {
-  BUILT_IN_TYPES,
-  behaviorFromParams,
-  behaviorForType,
+  BLANK_TYPE,
+  cloneAbilities,
+  sanitizeAbilities,
   createAntType,
-  getAntType,
+  updateAntType,
+  deleteAntType,
   getAntTypes,
-  parseAntBehavior,
+  getAntType,
   setNestType,
-  typeNameFromDescription,
 } from '../../src/sim/antTypes'
 import { createWorld } from '../../src/sim/world'
-import { DEFAULT_PARAMS, createParams } from '../../src/sim/params'
-import type { AntBehavior } from '../../src/sim/types'
-
-const base: AntBehavior = behaviorFromParams(DEFAULT_PARAMS)
+import type { Ability, AntTypeDraft } from '../../src/sim/types'
 
 function emptyWorld() {
   return createWorld({ params: { antCount: 0 } })
 }
 
-describe('behaviorFromParams', () => {
-  it('maps params 1:1 onto the behavior fields', () => {
-    const params = createParams({
-      antSpeed: 11,
-      antTurnRate: 2,
-      sensorAngle: 0.3,
-      sensorDistance: 7,
-      wanderStrength: 0.5,
-      pheromoneDeposit: 3,
-      followStrength: 1.1,
-      attractStrength: 0.9,
-      repelStrength: 2.2,
-      nestBias: 0.4,
-      antLifespan: 12,
-    })
+function draft(overrides: Partial<AntTypeDraft> = {}): AntTypeDraft {
+  return { name: 'Runner', lifespan: 60, abilities: [], ...overrides }
+}
 
-    expect(behaviorFromParams(params)).toEqual({
-      speed: 11,
-      turnRate: 2,
-      sensorAngle: 0.3,
-      sensorDistance: 7,
-      wanderStrength: 0.5,
-      pheromoneDeposit: 3,
-      followStrength: 1.1,
-      attractStrength: 0.9,
-      repelStrength: 2.2,
-      nestBias: 0.4,
-      lifespan: 12,
+describe('BLANK_TYPE', () => {
+  it('is a do-nothing type with a 60s lifespan', () => {
+    expect(BLANK_TYPE).toEqual({
+      id: 'blank',
+      name: 'Blank',
+      lifespan: 60,
+      abilities: [],
     })
   })
 })
 
-describe('parseAntBehavior', () => {
-  it('boosts a field when a fast word matches', () => {
-    expect(parseAntBehavior('fast', base).speed).toBeCloseTo(base.speed * 1.5)
-    expect(parseAntBehavior('quick', base).speed).toBeCloseTo(base.speed * 1.5)
-    expect(parseAntBehavior('speedy', base).speed).toBeCloseTo(base.speed * 1.5)
-    expect(parseAntBehavior('swift', base).speed).toBeCloseTo(base.speed * 1.5)
-    expect(parseAntBehavior('rapid', base).speed).toBeCloseTo(base.speed * 1.5)
+describe('sanitizeAbilities', () => {
+  it('clamps every numeric field', () => {
+    const abilities = sanitizeAbilities([
+      { kind: 'walk', speed: 200 },
+      { kind: 'wander', strength: -3 },
+      { kind: 'emit', pheromone: 'home', intensity: 100, condition: 'always' },
+      {
+        kind: 'follow',
+        pheromone: 'food',
+        direction: 'toward',
+        sensorAngle: 9,
+        sensorDistance: -1,
+        turnRate: 50,
+        condition: 'empty',
+      },
+    ])
+
+    expect(abilities).toEqual([
+      { kind: 'walk', speed: 80 },
+      { kind: 'wander', strength: 0 },
+      { kind: 'emit', pheromone: 'home', intensity: 40, condition: 'always' },
+      {
+        kind: 'follow',
+        pheromone: 'food',
+        direction: 'toward',
+        sensorAngle: 2,
+        sensorDistance: 0,
+        turnRate: 12,
+        condition: 'empty',
+      },
+    ])
   })
 
-  it('dampens a field when a slow word matches', () => {
-    expect(parseAntBehavior('slow', base).speed).toBeCloseTo(base.speed * 0.6)
-    expect(parseAntBehavior('sluggish', base).speed).toBeCloseTo(base.speed * 0.6)
+  it('drops unknown kinds', () => {
+    const unknown = [{ kind: 'teleport', power: 9 }] as unknown as Ability[]
+    expect(sanitizeAbilities(unknown)).toEqual([])
   })
 
-  it('returns the base unchanged for an unmatched description', () => {
-    expect(parseAntBehavior('nothing matches here', base)).toEqual(base)
+  it('copies each ability into a fresh object', () => {
+    const input: Ability[] = [{ kind: 'walk', speed: 5 }]
+    const output = sanitizeAbilities(input)
+    expect(output).toEqual(input)
+    expect(output[0]).not.toBe(input[0])
   })
 
-  it('returns the base unchanged for an empty description', () => {
-    expect(parseAntBehavior('', base)).toEqual(base)
-    expect(parseAntBehavior('   ', base)).toEqual(base)
+  it('drops non-object ability entries', () => {
+    const input = [null, 'walk', 7, undefined, { kind: 'walk', speed: 5 }]
+    expect(sanitizeAbilities(input)).toEqual([{ kind: 'walk', speed: 5 }])
   })
 
-  it('is case-insensitive', () => {
-    expect(parseAntBehavior('FAST', base).speed).toBeCloseTo(parseAntBehavior('fast', base).speed)
-    expect(parseAntBehavior('Short-Lived', base).lifespan).toBeCloseTo(
-      parseAntBehavior('short lived', base).lifespan,
-    )
+  it('clamps and keeps valid abilities', () => {
+    expect(
+      sanitizeAbilities([
+        { kind: 'walk', speed: 200 },
+        { kind: 'wander', strength: -3 },
+        { kind: 'emit', pheromone: 'repel', intensity: 100, condition: 'empty' },
+      ]),
+    ).toEqual([
+      { kind: 'walk', speed: 80 },
+      { kind: 'wander', strength: 0 },
+      { kind: 'emit', pheromone: 'repel', intensity: 40, condition: 'empty' },
+    ])
   })
 
-  it('treats hyphens as spaces', () => {
-    expect(parseAntBehavior('short-lived', base).lifespan).toBeCloseTo(base.lifespan * 0.5)
+  it('drops emit abilities when the pheromone kind is invalid', () => {
+    const input = [
+      { kind: 'emit', pheromone: 'hone', intensity: 5, condition: 'always' },
+    ]
+    expect(sanitizeAbilities(input)).toEqual([])
   })
 
-  it('normalizes punctuation into word separators', () => {
-    const parsed = parseAntBehavior('fast, curious scout', base)
-    expect(parsed.speed).toBeCloseTo(base.speed * 1.5)
-    expect(parsed.wanderStrength).toBeCloseTo(base.wanderStrength * 1.6)
+  it('drops emit abilities when the condition is invalid or missing', () => {
+    const input = [
+      { kind: 'emit', pheromone: 'home', intensity: 5, condition: 'sometimes' },
+      { kind: 'emit', pheromone: 'home', intensity: 5 },
+    ]
+    expect(sanitizeAbilities(input)).toEqual([])
   })
 
-  it('matches whole words rather than substrings', () => {
-    expect(parseAntBehavior('swiftly', base).speed).toBe(base.speed)
-    expect(parseAntBehavior('speedster', base).speed).toBe(base.speed)
-    expect(parseAntBehavior('followers', base).followStrength).toBe(base.followStrength)
+  it('drops follow abilities when direction, pheromone or condition is invalid', () => {
+    const input = [
+      {
+        kind: 'follow',
+        pheromone: 'food',
+        direction: 'sideways',
+        sensorAngle: 0.5,
+        sensorDistance: 4,
+        turnRate: 2,
+        condition: 'always',
+      },
+      {
+        kind: 'follow',
+        pheromone: 'nope',
+        direction: 'toward',
+        sensorAngle: 0.5,
+        sensorDistance: 4,
+        turnRate: 2,
+        condition: 'always',
+      },
+      {
+        kind: 'follow',
+        pheromone: 'food',
+        direction: 'toward',
+        sensorAngle: 0.5,
+        sensorDistance: 4,
+        turnRate: 2,
+        condition: 'rarely',
+      },
+    ]
+    expect(sanitizeAbilities(input)).toEqual([])
   })
 
-  it('always clamps sensorAngle even without a match', () => {
-    expect(parseAntBehavior('', { ...base, sensorAngle: 0 }).sensorAngle).toBe(0.1)
+  it('drops abilities whose numeric fields are not finite numbers', () => {
+    const input = [
+      { kind: 'walk', speed: NaN },
+      { kind: 'walk', speed: Infinity },
+      { kind: 'walk', speed: '5' },
+      { kind: 'wander', strength: Infinity },
+      { kind: 'wander', strength: '3' },
+      { kind: 'emit', pheromone: 'home', intensity: '8', condition: 'always' },
+      { kind: 'emit', pheromone: 'home', condition: 'always' },
+      { kind: 'emit', pheromone: 'home', intensity: NaN, condition: 'always' },
+      {
+        kind: 'follow',
+        pheromone: 'home',
+        direction: 'toward',
+        sensorAngle: NaN,
+        sensorDistance: 4,
+        turnRate: 2,
+        condition: 'always',
+      },
+      {
+        kind: 'follow',
+        pheromone: 'home',
+        direction: 'toward',
+        sensorAngle: 0.5,
+        sensorDistance: Infinity,
+        turnRate: 2,
+        condition: 'always',
+      },
+      {
+        kind: 'follow',
+        pheromone: 'home',
+        direction: 'toward',
+        sensorAngle: 0.5,
+        sensorDistance: 4,
+        turnRate: '2',
+        condition: 'always',
+      },
+    ]
+    expect(sanitizeAbilities(input)).toEqual([])
   })
 
-  it('matches multi-word phrases', () => {
-    expect(parseAntBehavior('far sighted', base).sensorDistance).toBeCloseTo(
-      base.sensorDistance * 1.5,
-    )
-  })
-
-  it('applies at most one multiplier per field', () => {
-    expect(parseAntBehavior('fast slow', base).speed).toBeCloseTo(base.speed * 1.5)
-    expect(parseAntBehavior('fast quick speedy', base).speed).toBeCloseTo(base.speed * 1.5)
-  })
-
-  it('boosts each behavior field from its keywords', () => {
-    expect(parseAntBehavior('agile', base).turnRate).toBeCloseTo(base.turnRate * 1.6)
-    expect(parseAntBehavior('keen', base).sensorDistance).toBeCloseTo(base.sensorDistance * 1.5)
-    expect(parseAntBehavior('curious', base).wanderStrength).toBeCloseTo(
-      base.wanderStrength * 1.6,
-    )
-    expect(parseAntBehavior('hardworking', base).pheromoneDeposit).toBeCloseTo(
-      base.pheromoneDeposit * 1.5,
-    )
-    expect(parseAntBehavior('loyal', base).followStrength).toBeCloseTo(base.followStrength * 1.6)
-    expect(parseAntBehavior('food', base).attractStrength).toBeCloseTo(base.attractStrength * 1.6)
-    expect(parseAntBehavior('cautious', base).repelStrength).toBeCloseTo(base.repelStrength * 1.6)
-    expect(parseAntBehavior('homing', base).nestBias).toBeCloseTo(base.nestBias * 1.5)
-    expect(parseAntBehavior('immortal', base).lifespan).toBeCloseTo(base.lifespan * 1.5)
-  })
-
-  it('dampens each behavior field from its keywords', () => {
-    expect(parseAntBehavior('steady', base).turnRate).toBeCloseTo(base.turnRate * 0.6)
-    expect(parseAntBehavior('shortsighted', base).sensorDistance).toBeCloseTo(
-      base.sensorDistance * 0.6,
-    )
-    expect(parseAntBehavior('focused', base).wanderStrength).toBeCloseTo(base.wanderStrength * 0.5)
-    expect(parseAntBehavior('lazy', base).pheromoneDeposit).toBeCloseTo(base.pheromoneDeposit * 0.5)
-    expect(parseAntBehavior('independent', base).followStrength).toBeCloseTo(
-      base.followStrength * 0.3,
-    )
-    expect(parseAntBehavior('brave', base).repelStrength).toBeCloseTo(base.repelStrength * 0.4)
-    expect(parseAntBehavior('adventurous', base).nestBias).toBeCloseTo(base.nestBias * 0.5)
-    expect(parseAntBehavior('mayfly', base).lifespan).toBeCloseTo(base.lifespan * 0.5)
-  })
-
-  it('clamps boosted values to the field maximum', () => {
-    const huge = behaviorFromParams(createParams({ antSpeed: 100 }))
-    expect(parseAntBehavior('fast', huge).speed).toBe(80)
-  })
-
-  it('clamps dampened values to the field minimum', () => {
-    const tiny = behaviorFromParams(createParams({ antSpeed: 2 }))
-    expect(parseAntBehavior('slow', tiny).speed).toBe(2)
-  })
-
-  it('only changes fields that match', () => {
-    const boosted = parseAntBehavior('fast', base)
-    expect(boosted.turnRate).toBe(base.turnRate)
-    expect(boosted.sensorDistance).toBe(base.sensorDistance)
-    expect(boosted.lifespan).toBe(base.lifespan)
+  it('never produces NaN or Infinity in a surviving ability', () => {
+    const abilities = sanitizeAbilities([
+      { kind: 'walk', speed: 40 },
+      { kind: 'wander', strength: 2 },
+      { kind: 'emit', pheromone: 'food', intensity: 8, condition: 'carrying' },
+      {
+        kind: 'follow',
+        pheromone: 'home',
+        direction: 'away',
+        sensorAngle: 0.5,
+        sensorDistance: 6,
+        turnRate: 3,
+        condition: 'empty',
+      },
+    ])
+    expect(abilities).toHaveLength(4)
+    for (const ability of abilities) {
+      for (const value of Object.values(ability as unknown as Record<string, unknown>)) {
+        if (typeof value === 'number') {
+          expect(Number.isFinite(value)).toBe(true)
+        }
+      }
+    }
   })
 })
 
-describe('typeNameFromDescription', () => {
-  it('falls back to Custom for an empty description', () => {
-    expect(typeNameFromDescription('')).toBe('Custom')
-    expect(typeNameFromDescription('   ')).toBe('Custom')
-  })
-
-  it('title-cases the first three tokens', () => {
-    expect(typeNameFromDescription('fast curious explorer that loves food')).toBe(
-      'Fast Curious Explorer',
-    )
-    expect(typeNameFromDescription('slow ant')).toBe('Slow Ant')
-  })
-})
-
-describe('built-in types', () => {
-  it('exposes worker, scout and trailblazer', () => {
-    expect(BUILT_IN_TYPES.map((type) => type.id)).toEqual(['worker', 'scout', 'trailblazer'])
-    expect(BUILT_IN_TYPES.find((type) => type.id === 'worker')?.name).toBe('Worker')
-  })
-
-  it('makes the scout faster and more wandering than the worker', () => {
-    const world = emptyWorld()
-    const worker = behaviorForType(world, 'worker')
-    const scout = behaviorForType(world, 'scout')
-    expect(scout.speed).toBeGreaterThan(worker.speed)
-    expect(scout.wanderStrength).toBeGreaterThan(worker.wanderStrength)
-  })
-
-  it('layers type rules on top of the current params', () => {
-    const world = emptyWorld()
-    world.params.antSpeed = 20
-    expect(behaviorForType(world, 'worker').speed).toBe(20)
-    expect(behaviorForType(world, 'scout').speed).toBe(30)
+describe('cloneAbilities', () => {
+  it('deep copies without clamping', () => {
+    const input: Ability[] = [{ kind: 'walk', speed: 999 }]
+    const output = cloneAbilities(input)
+    expect(output).toEqual(input)
+    expect(output).not.toBe(input)
+    expect(output[0]).not.toBe(input[0])
   })
 })
 
 describe('createAntType', () => {
-  it('creates types with evolving custom ids and stores them', () => {
+  it('assigns evolving custom ids and stores the type', () => {
     const world = emptyWorld()
-    const first = createAntType(world, 'fast scout')
-    const second = createAntType(world, 'slow worker')
+    const first = createAntType(world, draft({ name: 'First' }))
+    const second = createAntType(world, draft({ name: 'Second' }))
 
     expect(first.id).toBe('custom-1')
     expect(second.id).toBe('custom-2')
     expect(getAntType(world, 'custom-1')).toBe(first)
-    expect(getAntTypes(world)).toContain(first)
+    expect(getAntType(world, 'custom-2')).toBe(second)
   })
 
-  it('derives behavior from the description and current params', () => {
-    const world = emptyWorld()
-    const type = createAntType(world, 'fast')
-
-    world.params.antSpeed = 10
-    expect(behaviorForType(world, type.id).speed).toBeCloseTo(15)
-    world.params.antSpeed = 40
-    expect(behaviorForType(world, type.id).speed).toBeCloseTo(60)
-  })
-
-  it('continues custom id numbering from provided types', () => {
+  it('continues numbering from provided types', () => {
     const world = createWorld({
       params: { antCount: 0 },
       types: {
-        worker: { id: 'worker', name: 'Worker', description: '' },
-        'custom-4': { id: 'custom-4', name: 'Four', description: '' },
+        blank: { ...BLANK_TYPE },
+        'custom-4': { id: 'custom-4', name: 'Four', lifespan: 60, abilities: [] },
       },
     })
-    expect(createAntType(world, 'anything').id).toBe('custom-5')
+    expect(createAntType(world, draft()).id).toBe('custom-5')
+  })
+
+  it('trims names and falls back to Custom ant', () => {
+    const world = emptyWorld()
+    expect(createAntType(world, draft({ name: '   ' })).name).toBe('Custom ant')
+    expect(createAntType(world, draft({ name: '  Scout  ' })).name).toBe('Scout')
+  })
+
+  it('caps names at 40 characters', () => {
+    const world = emptyWorld()
+    const long = 'x'.repeat(100)
+    expect(createAntType(world, draft({ name: long })).name).toHaveLength(40)
+  })
+
+  it('clamps the lifespan to [1, 300]', () => {
+    const world = emptyWorld()
+    expect(createAntType(world, draft({ lifespan: 0 })).lifespan).toBe(1)
+    expect(createAntType(world, draft({ lifespan: 500 })).lifespan).toBe(300)
+  })
+
+  it('stores sanitized abilities', () => {
+    const world = emptyWorld()
+    const type = createAntType(world, draft({ abilities: [{ kind: 'walk', speed: 200 }] }))
+    expect(type.abilities).toEqual([{ kind: 'walk', speed: 80 }])
+  })
+})
+
+describe('updateAntType', () => {
+  it('refuses blank and unknown ids', () => {
+    const world = emptyWorld()
+    expect(updateAntType(world, 'blank', draft())).toBe(false)
+    expect(updateAntType(world, 'ghost', draft())).toBe(false)
+  })
+
+  it('replaces name, lifespan and abilities', () => {
+    const world = emptyWorld()
+    const type = createAntType(world, draft())
+    const ok = updateAntType(world, type.id, {
+      name: 'Fast',
+      lifespan: 999,
+      abilities: [{ kind: 'wander', strength: 100 }],
+    })
+    expect(ok).toBe(true)
+    expect(getAntType(world, type.id)).toMatchObject({
+      id: type.id,
+      name: 'Fast',
+      lifespan: 300,
+      abilities: [{ kind: 'wander', strength: 10 }],
+    })
+  })
+})
+
+describe('deleteAntType', () => {
+  it('refuses blank and unknown ids', () => {
+    const world = emptyWorld()
+    expect(deleteAntType(world, 'blank')).toBe(false)
+    expect(deleteAntType(world, 'ghost')).toBe(false)
+    expect(getAntType(world, 'blank')).toBeDefined()
+  })
+
+  it('deletes a custom type', () => {
+    const world = emptyWorld()
+    const type = createAntType(world, draft())
+    expect(deleteAntType(world, type.id)).toBe(true)
+    expect(getAntType(world, type.id)).toBeUndefined()
+  })
+
+  it('resets nestTypeId to blank when deleting the selected type', () => {
+    const world = emptyWorld()
+    const type = createAntType(world, draft())
+    setNestType(world, type.id)
+    expect(deleteAntType(world, type.id)).toBe(true)
+    expect(world.nestTypeId).toBe('blank')
+  })
+})
+
+describe('getAntTypes', () => {
+  it('returns types in insertion order with blank first', () => {
+    const world = emptyWorld()
+    createAntType(world, draft({ name: 'One' }))
+    createAntType(world, draft({ name: 'Two' }))
+    expect(getAntTypes(world).map((type) => type.id)).toEqual([
+      'blank',
+      'custom-1',
+      'custom-2',
+    ])
   })
 })
 
@@ -239,11 +338,12 @@ describe('getAntType', () => {
 })
 
 describe('setNestType', () => {
-  it('accepts a known id and rejects an unknown one', () => {
+  it('accepts existing ids and rejects unknown ones', () => {
     const world = emptyWorld()
-    expect(setNestType(world, 'scout')).toBe(true)
-    expect(world.nestTypeId).toBe('scout')
+    const type = createAntType(world, draft())
+    expect(setNestType(world, type.id)).toBe(true)
+    expect(world.nestTypeId).toBe(type.id)
     expect(setNestType(world, 'ghost')).toBe(false)
-    expect(world.nestTypeId).toBe('scout')
+    expect(world.nestTypeId).toBe(type.id)
   })
 })

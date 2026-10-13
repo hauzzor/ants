@@ -15,24 +15,48 @@ export interface Grid {
 
 export type AntState = 'wander' | 'return'
 
-export interface AntBehavior {
+export type Condition = 'always' | 'carrying' | 'empty'
+
+export interface WalkAbility {
+  kind: 'walk'
   speed: number
-  turnRate: number
+}
+
+export interface WanderAbility {
+  kind: 'wander'
+  strength: number
+}
+
+export interface EmitAbility {
+  kind: 'emit'
+  pheromone: PheromoneKind
+  intensity: number
+  condition: Condition
+}
+
+export interface FollowAbility {
+  kind: 'follow'
+  pheromone: PheromoneKind
+  direction: 'toward' | 'away'
   sensorAngle: number
   sensorDistance: number
-  wanderStrength: number
-  pheromoneDeposit: number
-  followStrength: number
-  attractStrength: number
-  repelStrength: number
-  nestBias: number
-  lifespan: number
+  turnRate: number
+  condition: Condition
 }
+
+export type Ability = WalkAbility | WanderAbility | EmitAbility | FollowAbility
 
 export interface AntType {
   id: string
   name: string
-  description: string
+  lifespan: number
+  abilities: Ability[]
+}
+
+export interface AntTypeDraft {
+  name: string
+  lifespan: number
+  abilities: Ability[]
 }
 
 export interface Ant {
@@ -42,10 +66,10 @@ export interface Ant {
   angle: number
   state: AntState
   carrying: boolean
-  wander: number
   age: number
   typeId: string
-  behavior: AntBehavior
+  lifespan: number
+  abilities: Ability[]
 }
 
 export interface FoodSource {
