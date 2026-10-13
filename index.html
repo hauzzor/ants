@@ -11,7 +11,38 @@
   </head>
   <body>
     <div id="app">
-      <canvas id="arena" aria-label="Ant colony arena"></canvas>
+      <header id="topbar">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <h1>Ants</h1>
+          <span class="brand-sub">colony simulator</span>
+        </div>
+        <div id="metrics" class="metrics"></div>
+        <div id="controls" class="controls"></div>
+      </header>
+      <main id="stage">
+        <canvas id="arena" aria-label="Ant colony arena"></canvas>
+        <div id="hint" class="hint">Pick a tool, then click or drag on the arena.</div>
+      </main>
+      <aside id="sidebar">
+        <section class="panel">
+          <h2>Tools</h2>
+          <div id="palette" class="palette"></div>
+        </section>
+        <section class="panel">
+          <h2>Parameters</h2>
+          <div id="sliders" class="sliders"></div>
+        </section>
+        <section class="panel legend">
+          <h2>Legend</h2>
+          <ul>
+            <li><i class="sw home"></i>home trail</li>
+            <li><i class="sw food"></i>food trail</li>
+            <li><i class="sw attract"></i>attract</li>
+            <li><i class="sw repel"></i>repel</li>
+          </ul>
+        </section>
+      </aside>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

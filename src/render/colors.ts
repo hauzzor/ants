@@ -1,0 +1,15 @@
+export const COLORS = {
+  background: '#0b0e13',
+  arenaBackground: '#141a22',
+  arenaBorder: '#232c38',
+  wall: '#39404d',
+  wallEdge: '#4c5563',
+  nest: '#d8ab5f',
+  nestCore: '#7d5a24',
+  food: '#57d16a',
+  foodEdge: '#2c7a3c',
+  ant: '#f3ead9',
+  antCarry: '#ffd970',
+  brush: 'rgba(255,255,255,0.85)',
+  brushFill: 'rgba(255,255,255,0.08)',
+} as const
