@@ -24,7 +24,7 @@ export const DEFAULT_PARAMS: SimParams = {
   sensorAngle: 0.6,
   sensorDistance: 6,
   wanderStrength: 1.2,
-  pheromoneDeposit: 0.6,
+  pheromoneDeposit: 8,
   pheromoneDecay: 0.12,
   pheromoneDiffusion: 0.5,
   followStrength: 2.2,
