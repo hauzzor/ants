@@ -39,6 +39,31 @@ After completing a change: run `npm.cmd run validate`. Before pushing, ensure
 - Match existing naming and file conventions.
 - Do not add comments unless they clarify non-obvious intent.
 
+## Agent team
+
+This repository ships an opencode agent team in `.opencode/agent/`, with
+`default_agent: lead` in `opencode.json`. Restart opencode after editing any
+agent file.
+
+| Agent | Mode | Owns | Never touches |
+| --- | --- | --- | --- |
+| `lead` | primary | `src/main.ts`, `src/sim/types.ts`, integration, commits | — |
+| `sim-dev` | subagent | `src/sim/**`, its unit tests | everything outside scope |
+| `render-dev` | subagent | `src/render/**`, its unit tests | everything outside scope |
+| `ui-input-dev` | subagent | `src/ui/**`, `src/input/**`, their unit tests | everything outside scope |
+| `test-dev` | subagent | `tests/e2e/**`, `vitest.config.ts`, `playwright.config.ts` | `src/**` |
+| `reviewer` | subagent | read-only review | all edits |
+
+- One writer per file. The lead assigns disjoint workstreams and batches Task
+  calls so subagents run in parallel; nobody edits another agent's files.
+- Module owners write the failing unit test first (TDD). `test-dev` extends
+  `tests/unit/**` only for files the lead assigns.
+- Subagents cannot run `git add/commit/push` (hard-denied by their
+  permissions); the lead commits green increments sequentially after
+  integration.
+- `/feature <description>` runs the full parallel workflow; `/validate` drives
+  `npm.cmd run validate` to green.
+
 ## Commit / push workflow
 
 - Commit after every build that passes tests.
