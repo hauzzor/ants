@@ -21,7 +21,7 @@ import type { Ability, Ant, World } from '../../src/sim/types'
 const STEP = 1 / 60
 
 function emptyWorld(seed = 1): World {
-  return createWorld({ seed, params: { antCount: 0, spawnInterval: 0 } })
+  return createWorld({ seed, maze: false, params: { antCount: 0, spawnInterval: 0 } })
 }
 
 function addAnt(
@@ -330,7 +330,7 @@ describe('emitAbilities', () => {
     expect(sample(world.pheromones.home, world.grid, 62, 82)).toBeCloseTo(10)
   })
 
-  it('records the ant heading as the emission direction', () => {
+  it('records the reverse ant heading as the emission direction', () => {
     const world = emptyWorld()
     const ant = addAnt(
       world,
@@ -341,12 +341,12 @@ describe('emitAbilities', () => {
     )
     emitAbilities(world, ant, 1)
     const dir = sampleDirection(world.pheromones, 'home', world.grid, 62, 82)
-    expect(dir.x).toBeCloseTo(1, 6)
+    expect(dir.x).toBeCloseTo(-1, 6)
     expect(dir.y).toBeCloseTo(0, 6)
     expect(dir.magnitude).toBeCloseTo(10, 5)
   })
 
-  it('records an off-axis heading and still scales by freshness', () => {
+  it('records a reversed off-axis heading and still scales by freshness', () => {
     const world = emptyWorld()
     world.time = PHEROMONE_FRESHNESS_HALF_LIFE
     const angle = Math.PI / 3
@@ -359,8 +359,8 @@ describe('emitAbilities', () => {
     )
     emitAbilities(world, ant, 1)
     const dir = sampleDirection(world.pheromones, 'home', world.grid, 62, 82)
-    expect(dir.x).toBeCloseTo(Math.cos(angle), 6)
-    expect(dir.y).toBeCloseTo(Math.sin(angle), 6)
+    expect(dir.x).toBeCloseTo(-Math.cos(angle), 6)
+    expect(dir.y).toBeCloseTo(-Math.sin(angle), 6)
     expect(dir.magnitude).toBeCloseTo(5, 5)
   })
 

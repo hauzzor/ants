@@ -79,8 +79,8 @@ export function emitRadial(
     raisePeak(peak, i, value)
     if (distance > 0) {
       const center = cellCenter(grid, col, row)
-      const ux = (center.x - centerX) / distance
-      const uy = (center.y - centerY) / distance
+      const ux = (centerX - center.x) / distance
+      const uy = (centerY - center.y) / distance
       dir.x[i] = (dir.x[i] ?? 0) + add * ux
       dir.y[i] = (dir.y[i] ?? 0) + add * uy
     }

@@ -3,6 +3,7 @@ import { createGrid, index } from '../../src/sim/grid'
 import {
   createFields,
   deposit,
+  emitRadial,
   sample,
   sampleDirection,
   decay,
@@ -85,16 +86,16 @@ describe('deposit', () => {
     expect(fields.peaks.food[0]).toBe(5)
   })
 
-  it('records a direction weighted by the deposited amount', () => {
+  it('records a reverse-heading direction weighted by the deposited amount', () => {
     const fields = createFields(grid)
     const i = index(grid, 5, 5)
-    deposit(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 4, 1, 0)
-    expect(fields.dirs.food.x[i]).toBe(4)
+    deposit(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 4, -1, 0)
+    expect(fields.dirs.food.x[i]).toBe(-4)
     expect(fields.dirs.food.y[i]).toBe(0)
 
-    deposit(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 2, 0, 1)
-    expect(fields.dirs.food.x[i]).toBe(4)
-    expect(fields.dirs.food.y[i]).toBe(2)
+    deposit(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 2, 0, -1)
+    expect(fields.dirs.food.x[i]).toBe(-4)
+    expect(fields.dirs.food.y[i]).toBe(-2)
   })
 
   it('leaves the direction untouched when none is supplied', () => {
@@ -103,6 +104,30 @@ describe('deposit', () => {
     deposit(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 4)
     expect(fields.dirs.food.x[i]).toBe(0)
     expect(fields.dirs.food.y[i]).toBe(0)
+  })
+})
+
+describe('emitRadial', () => {
+  it('records the direction from each cell toward the source centre', () => {
+    const fields = createFields(grid)
+    emitRadial(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 12, 5, 1)
+
+    const right = index(grid, 6, 5)
+    expect(fields.dirs.food.x[right]).toBeLessThan(0)
+    expect(fields.dirs.food.y[right]).toBeCloseTo(0, 6)
+
+    const down = index(grid, 5, 6)
+    expect(fields.dirs.food.y[down]).toBeLessThan(0)
+    expect(fields.dirs.food.x[down]).toBeCloseTo(0, 6)
+  })
+
+  it('records no direction in the source cell', () => {
+    const fields = createFields(grid)
+    emitRadial(fields.food, fields.peaks.food, fields.dirs.food, grid, 22, 22, 12, 5, 1)
+
+    const center = index(grid, 5, 5)
+    expect(fields.dirs.food.x[center]).toBe(0)
+    expect(fields.dirs.food.y[center]).toBe(0)
   })
 })
 

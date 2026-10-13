@@ -3,10 +3,12 @@ export interface ControlHandlers {
   onStep(): void
   onReset(): void
   onNewSeed(): void
+  onToggleMaze(): void
 }
 
 export interface ControlsHandle {
   setPaused(paused: boolean): void
+  setMaze(enabled: boolean): void
 }
 
 export function createControls(root: HTMLElement, handlers: ControlHandlers): ControlsHandle {
@@ -15,6 +17,7 @@ export function createControls(root: HTMLElement, handlers: ControlHandlers): Co
     <button type="button" class="control" data-testid="control-step">Step</button>
     <button type="button" class="control" data-testid="control-reset">Reset</button>
     <button type="button" class="control" data-testid="control-reseed">New seed</button>
+    <button type="button" class="control" data-testid="control-maze" title="Toggle maze layout (rebuilds the arena)">Maze</button>
   `
 
   const play = root.querySelector('[data-testid="control-play"]') as HTMLButtonElement
@@ -28,11 +31,16 @@ export function createControls(root: HTMLElement, handlers: ControlHandlers): Co
   root
     .querySelector('[data-testid="control-reseed"]')
     ?.addEventListener('click', () => handlers.onNewSeed())
+  const maze = root.querySelector('[data-testid="control-maze"]') as HTMLButtonElement
+  maze.addEventListener('click', () => handlers.onToggleMaze())
 
   return {
     setPaused(paused: boolean): void {
       play.textContent = paused ? 'Play' : 'Pause'
       play.classList.toggle('active', !paused)
+    },
+    setMaze(enabled: boolean): void {
+      maze.classList.toggle('active', enabled)
     },
   }
 }

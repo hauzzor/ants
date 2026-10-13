@@ -133,8 +133,8 @@ export function emitAbilities(world: World, ant: Ant, dt: number): void {
       ant.x,
       ant.y,
       amount,
-      Math.cos(ant.angle),
-      Math.sin(ant.angle),
+      -Math.cos(ant.angle),
+      -Math.sin(ant.angle),
     )
   }
 }

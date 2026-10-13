@@ -4,6 +4,7 @@ export const COLORS = {
   arenaBorder: '#232c38',
   wall: '#39404d',
   wallEdge: '#4c5563',
+  obstacle: '#7a5c3a',
   nest: '#d8ab5f',
   nestCore: '#7d5a24',
   food: '#57d16a',

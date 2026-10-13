@@ -13,7 +13,7 @@ import {
   updateAntType,
 } from './sim'
 import type { AntType, PheromoneKind } from './sim'
-import { wallCount } from './sim/walls'
+import { obstacleCount, wallCount } from './sim/walls'
 import { createRenderer } from './render/canvasRenderer'
 import { attachPointer } from './input/pointer'
 import { applyTool } from './input/actions'
@@ -54,17 +54,7 @@ interface GameState {
   brush: number
   pointer: { x: number; y: number } | null
   seed: number
-}
-
-const storedTypes = loadTypeStore()
-let world = createWorld(
-  storedTypes
-    ? { seed: 1, types: storedTypes.types, nestTypeId: storedTypes.nestTypeId }
-    : { seed: 1 },
-)
-
-function persistTypes(): void {
-  saveTypeStore({ types: world.types, nestTypeId: world.nestTypeId })
+  maze: boolean
 }
 
 const state: GameState = {
@@ -74,6 +64,23 @@ const state: GameState = {
   brush: 14,
   pointer: null,
   seed: 1,
+  maze: true,
+}
+
+const storedTypes = loadTypeStore()
+let world = createWorld(
+  storedTypes
+    ? {
+        seed: 1,
+        maze: state.maze,
+        types: storedTypes.types,
+        nestTypeId: storedTypes.nestTypeId,
+      }
+    : { seed: 1, maze: state.maze },
+)
+
+function persistTypes(): void {
+  saveTypeStore({ types: world.types, nestTypeId: world.nestTypeId })
 }
 
 const renderer = createRenderer(canvas)
@@ -135,6 +142,7 @@ function resetWorld(seed: number = state.seed): void {
   state.seed = seed
   world = createWorld({
     seed,
+    maze: state.maze,
     params: world.params,
     types: world.types,
     nestTypeId: world.nestTypeId,
@@ -155,7 +163,14 @@ const controls = createControls(controlsEl, {
   },
   onReset: () => resetWorld(),
   onNewSeed: () => resetWorld(Math.floor(Math.random() * 2 ** 31)),
+  onToggleMaze: () => {
+    state.maze = !state.maze
+    controls.setMaze(state.maze)
+    resetWorld()
+  },
 })
+
+controls.setMaze(state.maze)
 
 attachPointer(canvas, renderer, state, (x, y) => {
   applyTool(world, state.tool, x, y, state.brush)
@@ -214,11 +229,13 @@ declare global {
         foodScent: number
         homePheromone: number
         walls: number
+        obstacles: number
       }
       types(): AntType[]
       nestType(): string
       typeCounts(): Record<string, number>
       visiblePheromones(): PheromoneKind[]
+      maze(): boolean
       reset(seed?: number): void
     }
   }
@@ -238,6 +255,7 @@ window.ants = {
     foodScent: world.pheromones.food.reduce((sum, value) => sum + value, 0),
     homePheromone: world.pheromones.home.reduce((sum, value) => sum + value, 0),
     walls: wallCount(world.walls),
+    obstacles: obstacleCount(world.walls),
   }),
   types: () => getAntTypes(world),
   nestType: () => world.nestTypeId,
@@ -250,6 +268,7 @@ window.ants = {
   },
   visiblePheromones: () =>
     PHEROMONE_KINDS.filter((kind) => pheromoneFilter.visible().has(kind)),
+  maze: () => state.maze,
   reset: (seed?: number) => {
     resetWorld(seed ?? state.seed)
   },

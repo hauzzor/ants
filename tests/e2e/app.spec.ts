@@ -59,9 +59,11 @@ test('painting attract pheromone adds to the field', async ({ page }) => {
   await page.getByTestId('tool-attract').click()
   const box = await page.locator('canvas#arena').boundingBox()
   if (!box) throw new Error('no canvas box')
-  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5)
+  const startX = box.x + box.width * 0.5
+  const startY = box.y + box.height * 0.5
+  await page.mouse.move(startX, startY)
   await page.mouse.down()
-  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.5, { steps: 6 })
+  await page.mouse.move(startX + box.width * 0.02, startY, { steps: 6 })
   await page.mouse.up()
   const attract = await page.evaluate(() => window.ants!.stats().attract)
   expect(attract).toBeGreaterThan(0)

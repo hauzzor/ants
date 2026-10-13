@@ -46,14 +46,24 @@ test('multi-select: toggles independently change visiblePheromones', async ({ pa
 
 test('rendering respects the selected pheromone overlay', async ({ page }) => {
   await page.getByTestId('control-play').click()
+  await page.getByTestId('slider-colony').evaluate((el) => {
+    const input = el as HTMLInputElement
+    input.value = '0'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await expect.poll(() => page.evaluate(() => window.ants!.snapshot().ants)).toBe(0)
+
   await page.getByTestId('tool-attract').click()
 
   const box = await page.locator('canvas#arena').boundingBox()
   if (!box) throw new Error('no canvas box')
 
-  const cssX = box.width * 0.25
-  const cssY = box.height * 0.25
+  const scale = Math.min(box.width / 240, box.height / 160)
+  const cssX = box.width / 2 + 10 * scale
+  const cssY = box.height / 2
+
   await page.mouse.click(box.x + cssX, box.y + cssY)
+  await page.mouse.move(box.x + box.width - 8, box.y + box.height - 8)
   await page.waitForTimeout(150)
 
   const samplePixel = () =>
@@ -81,7 +91,7 @@ test('rendering respects the selected pheromone overlay', async ({ page }) => {
   const restoredColor = await samplePixel()
 
   expect(hiddenColor).not.toEqual(visibleColor)
-  expect(hiddenColor).not.toEqual(restoredColor)
+  expect(restoredColor).toEqual(visibleColor)
 })
 
 test('pheromone lifetime floor: decayed attract pheromone vanishes completely', async ({ page }) => {

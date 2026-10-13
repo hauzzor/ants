@@ -81,7 +81,7 @@ describe('createWorld', () => {
   })
 
   it('walls off the arena border', () => {
-    const world = createWorld()
+    const world = createWorld({ maze: false })
     expect(isWallAt(world.walls, world.grid, 2, 2)).toBe(true)
     expect(isWallAt(world.walls, world.grid, 20, 20)).toBe(false)
   })
@@ -277,7 +277,7 @@ describe('nest scent emission', () => {
     expect(world.pheromones.peaks.home.some((value) => value > 0)).toBe(true)
   })
 
-  it('records the outward direction from the nest', () => {
+  it('records the inward direction toward the nest', () => {
     const world = createWorld({ params: { antCount: 0, spawnInterval: 0 } })
 
     stepWorld(world, STEP)
@@ -290,7 +290,7 @@ describe('nest scent emission', () => {
       world.nest.y,
     )
     expect(dir.magnitude).toBeGreaterThan(0)
-    expect(dir.x).toBeGreaterThan(0)
+    expect(dir.x).toBeLessThan(0)
   })
 
   it('is deterministic with nest scent emission', () => {

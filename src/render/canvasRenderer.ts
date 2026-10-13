@@ -1,6 +1,7 @@
 import type { PheromoneKind, World } from '../sim'
 import { COLORS, antColor } from './colors'
 import { pheromonePixel } from './pheromonePixel'
+import { wallColor } from './wallColor'
 
 export interface UiRenderState {
   tool: string
@@ -99,12 +100,18 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 
   function drawWalls(world: World): void {
     const { cols, rows, cellSize } = world.grid
-    ctx.fillStyle = COLORS.wall
+    let current: string | null = null
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        if (world.walls[row * cols + col] === 1) {
-          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize)
+        const color = wallColor(world.walls[row * cols + col] ?? 0)
+        if (color === null) {
+          continue
         }
+        if (color !== current) {
+          ctx.fillStyle = color
+          current = color
+        }
+        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize)
       }
     }
   }

@@ -5,6 +5,7 @@ import { createGrid } from './grid'
 import { createMetrics } from './metrics'
 import { createFields, cullDiluted, decay, diffuse, emitRadial, recordPeaks } from './pheromone'
 import { createWalls, addBorderWalls } from './walls'
+import { generateMaze } from './maze'
 import { updateAnt, spawnAntNearNest } from './ant'
 import { BLANK_TYPE, cloneAbilities, getAntType } from './antTypes'
 import { emitScent, pruneDepleted } from './food'
@@ -29,6 +30,9 @@ export interface WorldOptions {
   nest?: Vec2
   types?: Record<string, AntType>
   nestTypeId?: string
+  maze?: boolean
+  mazeCellSize?: number
+  mazeObstacles?: number
 }
 
 function cloneBlankType(): AntType {
@@ -73,6 +77,12 @@ export function createWorld(options: WorldOptions = {}): World {
 
   const walls = createWalls(grid)
   addBorderWalls(walls, grid)
+  if (options.maze !== false) {
+    generateMaze(walls, grid, rng, nest, {
+      cellSize: options.mazeCellSize,
+      obstacles: options.mazeObstacles,
+    })
+  }
 
   const world: World = {
     width,

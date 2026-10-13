@@ -161,18 +161,18 @@ describe('emitScent', () => {
     expect(at(peak, GRID, 1, 1)).toBeGreaterThan(0)
   })
 
-  it('records the outward direction from the source', () => {
+  it('records the direction toward the source', () => {
     const field = emptyField(GRID)
     const peak = emptyField(GRID)
     const dir = emptyDir(GRID)
     emitScent([createFood(0, 6, 6, 10)], field, peak, dir, GRID, 6, 5, 1)
 
     const right = index(GRID, 2, 1)
-    expect(dir.x[right]).toBeGreaterThan(0)
+    expect(dir.x[right]).toBeLessThan(0)
     expect(dir.y[right]).toBeCloseTo(0, 6)
 
     const down = index(GRID, 1, 2)
-    expect(dir.y[down]).toBeGreaterThan(0)
+    expect(dir.y[down]).toBeLessThan(0)
     expect(dir.x[down]).toBeCloseTo(0, 6)
   })
 })

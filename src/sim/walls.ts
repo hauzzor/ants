@@ -8,7 +8,7 @@ export function createWalls(grid: Grid): Uint8Array {
 export function isWallAt(walls: Uint8Array, grid: Grid, x: number, y: number): boolean {
   const col = clampCol(grid, Math.floor(x / grid.cellSize))
   const row = clampRow(grid, Math.floor(y / grid.cellSize))
-  return walls[index(grid, col, row)] === 1
+  return walls[index(grid, col, row)] !== 0
 }
 
 export function setWallCircle(
@@ -39,7 +39,17 @@ export function addBorderWalls(walls: Uint8Array, grid: Grid): void {
 export function wallCount(walls: Uint8Array): number {
   let count = 0
   for (let i = 0; i < walls.length; i++) {
-    if (walls[i] === 1) {
+    if (walls[i] !== 0) {
+      count++
+    }
+  }
+  return count
+}
+
+export function obstacleCount(walls: Uint8Array): number {
+  let count = 0
+  for (let i = 0; i < walls.length; i++) {
+    if (walls[i] === 2) {
       count++
     }
   }

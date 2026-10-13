@@ -102,7 +102,7 @@ describe('placeFood / removeFoodAt', () => {
 
 describe('drawWall', () => {
   it('adds and removes walls', () => {
-    const world = createWorld({ params: { antCount: 0 } })
+    const world = createWorld({ maze: false, params: { antCount: 0 } })
     const base = wallCount(world.walls)
     drawWall(world, 100, 80, 8, 1)
     expect(wallCount(world.walls)).toBeGreaterThan(base)
