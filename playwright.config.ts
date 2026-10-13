@@ -15,7 +15,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium' } },
   ],
   webServer: {
     command: `npm run preview -- --port ${PORT} --strictPort`,

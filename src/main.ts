@@ -1,5 +1,6 @@
 import './style.css'
-import { createWorld, stepWorld, setAntCount } from './sim'
+import { createWorld, stepWorld, setAntCount, totalFood } from './sim'
+import { wallCount } from './sim/walls'
 import { createRenderer } from './render/canvasRenderer'
 import { attachPointer } from './input/pointer'
 import { applyTool } from './input/actions'
@@ -140,6 +141,12 @@ declare global {
   interface Window {
     ants?: {
       snapshot(): { time: number; ants: number; collected: number; delivered: number }
+      stats(): {
+        foodSources: number
+        foodTotal: number
+        attract: number
+        walls: number
+      }
       reset(seed?: number): void
     }
   }
@@ -151,6 +158,12 @@ window.ants = {
     ants: world.ants.length,
     collected: world.metrics.foodCollected,
     delivered: world.metrics.foodInNest,
+  }),
+  stats: () => ({
+    foodSources: world.foods.length,
+    foodTotal: totalFood(world.foods),
+    attract: world.pheromones.attract.reduce((sum, value) => sum + value, 0),
+    walls: wallCount(world.walls),
   }),
   reset: (seed?: number) => {
     resetWorld(seed ?? state.seed)
