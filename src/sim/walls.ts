@@ -1,4 +1,4 @@
-import { clampCol, clampRow, index } from './grid'
+import { clampCol, clampRow, forEachCellInCircle, index } from './grid'
 import type { Grid } from './types'
 
 export function createWalls(grid: Grid): Uint8Array {
@@ -19,24 +19,9 @@ export function setWallCircle(
   radius: number,
   value: 0 | 1,
 ): void {
-  const { cellSize } = grid
-  const minCol = clampCol(grid, Math.floor((x - radius) / cellSize))
-  const maxCol = clampCol(grid, Math.floor((x + radius) / cellSize))
-  const minRow = clampRow(grid, Math.floor((y - radius) / cellSize))
-  const maxRow = clampRow(grid, Math.floor((y + radius) / cellSize))
-  const radiusSq = radius * radius
-
-  for (let row = minRow; row <= maxRow; row++) {
-    const cy = (row + 0.5) * cellSize
-    for (let col = minCol; col <= maxCol; col++) {
-      const cx = (col + 0.5) * cellSize
-      const dx = cx - x
-      const dy = cy - y
-      if (dx * dx + dy * dy <= radiusSq) {
-        walls[index(grid, col, row)] = value
-      }
-    }
-  }
+  forEachCellInCircle(grid, x, y, radius, (col, row) => {
+    walls[index(grid, col, row)] = value
+  })
 }
 
 export function addBorderWalls(walls: Uint8Array, grid: Grid): void {

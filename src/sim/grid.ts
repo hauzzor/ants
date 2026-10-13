@@ -37,3 +37,31 @@ export function cellCenter(grid: Grid, col: number, row: number): Vec2 {
     y: (row + 0.5) * grid.cellSize,
   }
 }
+
+export function forEachCellInCircle(
+  grid: Grid,
+  x: number,
+  y: number,
+  radius: number,
+  visit: (col: number, row: number, distance: number) => void,
+): void {
+  const { cellSize } = grid
+  const minCol = clampCol(grid, Math.floor((x - radius) / cellSize))
+  const maxCol = clampCol(grid, Math.floor((x + radius) / cellSize))
+  const minRow = clampRow(grid, Math.floor((y - radius) / cellSize))
+  const maxRow = clampRow(grid, Math.floor((y + radius) / cellSize))
+  const radiusSq = radius * radius
+
+  for (let row = minRow; row <= maxRow; row++) {
+    const cy = (row + 0.5) * cellSize
+    for (let col = minCol; col <= maxCol; col++) {
+      const cx = (col + 0.5) * cellSize
+      const dx = cx - x
+      const dy = cy - y
+      const distSq = dx * dx + dy * dy
+      if (distSq <= radiusSq) {
+        visit(col, row, Math.sqrt(distSq))
+      }
+    }
+  }
+}
