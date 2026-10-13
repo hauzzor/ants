@@ -2,7 +2,7 @@
 name: ui-input-dev
 description: UI and input developer. Implements controls, HUD, sliders, palette, and pointer/action handling in src/ui and src/input. Use for player-facing interaction work.
 mode: subagent
-model: opencode-go/glm-5.3-flash
+model: opencode-go/mimo-v2.6-flash
 color: secondary
 permission:
   edit:

@@ -2,7 +2,7 @@
 name: reviewer
 description: Read-only code reviewer. Independently audits diffs against AGENTS.md, determinism, correctness, and test quality. Use before committing non-trivial changes.
 mode: subagent
-model: opencode-go/glm-5.3
+model: opencode-go/deepseek-v4.1-flash
 color: error
 permission:
   edit: deny
